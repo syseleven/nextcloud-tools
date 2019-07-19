@@ -640,47 +640,50 @@
 				debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 			} else {
 				$version = intval($filecache[$filename]);
-
-				if (!is_file($filename)) {
-					debug("$filename: File is not a file.", DEBUG_DEFAULT);
+				if (0 === $version) {
+					debug("$filename: Filecache contains zero version for file.", DEBUG_DEFAULT);
 				} else {
-					if (!is_file($masterkeyname)) {
-						debug("$filename: Masterkey is not a file.", DEBUG_DEFAULT);
+					if (!is_file($filename)) {
+						debug("$filename: File is not a file.", DEBUG_DEFAULT);
 					} else {
-						if (!is_file($filekeyname)) {
-							debug("$filename: Filekey is not a file.", DEBUG_DEFAULT);
+						if (!is_file($masterkeyname)) {
+							debug("$filename: Masterkey is not a file.", DEBUG_DEFAULT);
 						} else {
-							if (!is_file($sharekeyname)) {
-								debug("$filename: Sharekey is not a file.", DEBUG_DEFAULT);
+							if (!is_file($filekeyname)) {
+								debug("$filename: Filekey is not a file.", DEBUG_DEFAULT);
 							} else {
-								$file = file_get_contents($filename);
-								if (false === $file) {
-									debug("$filename: File could not be read.", DEBUG_DEFAULT);
+								if (!is_file($sharekeyname)) {
+									debug("$filename: Sharekey is not a file.", DEBUG_DEFAULT);
 								} else {
-									$masterkey = file_get_contents($masterkeyname);
-									if (false === $masterkey) {
-										debug("$filename: Masterkey could not be read.", DEBUG_DEFAULT);
+									$file = file_get_contents($filename);
+									if (false === $file) {
+										debug("$filename: File could not be read.", DEBUG_DEFAULT);
 									} else {
-										$filekey = file_get_contents($filekeyname);
-										if (false === $filekey) {
-											debug("$filename: Filekey could not be read.", DEBUG_DEFAULT);
+										$masterkey = file_get_contents($masterkeyname);
+										if (false === $masterkey) {
+											debug("$filename: Masterkey could not be read.", DEBUG_DEFAULT);
 										} else {
-											$sharekey = file_get_contents($sharekeyname);
-											if (false === $sharekey) {
-												debug("$filename: Sharekey could not be read.", DEBUG_DEFAULT);
+											$filekey = file_get_contents($filekeyname);
+											if (false === $filekey) {
+												debug("$filename: Filekey could not be read.", DEBUG_DEFAULT);
 											} else {
-												if (!checkFile($file, $filekey, $masterkey, $sharekey, $version)) {
-													debug("$filename: File signature mismatch.", DEBUG_DEFAULT);
-
-													if (FIXSIGNATURES) {
-														if (!fixFile($file, $filename, $filekey, $masterkey, $sharekey, $version)) {
-															debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
-														} else {
-															debug("$filename: File signature fixed.", DEBUG_DEFAULT);
-														}
-													}
+												$sharekey = file_get_contents($sharekeyname);
+												if (false === $sharekey) {
+													debug("$filename: Sharekey could not be read.", DEBUG_DEFAULT);
 												} else {
-													debug("$filename: OK", DEBUG_INFO);
+													if (!checkFile($file, $filekey, $masterkey, $sharekey, $version)) {
+														debug("$filename: File signature mismatch.", DEBUG_DEFAULT);
+
+														if (FIXSIGNATURES) {
+															if (!fixFile($file, $filename, $filekey, $masterkey, $sharekey, $version)) {
+																debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
+															} else {
+																debug("$filename: File signature fixed.", DEBUG_DEFAULT);
+															}
+														}
+													} else {
+														debug("$filename: OK", DEBUG_INFO);
+													}
 												}
 											}
 										}
