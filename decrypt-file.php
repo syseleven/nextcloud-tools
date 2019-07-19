@@ -18,7 +18,7 @@
 	define("INSTANCEID",    "");
 	define("SECRET",        "");
 
-	// static definitions
+	// custom definitions
 	define("DEBUGLEVEL", DEBUG_DEFAULT);
 
 	function concatPath($directory, $file) {

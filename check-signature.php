@@ -46,7 +46,7 @@
 	define("INSTANCEID",    "");
 	define("SECRET",        "");
 
-	// static definitions
+	// custom definitions
 	define("DEBUGLEVEL",    DEBUG_DEFAULT);
 	define("FILECACHE",     "/tmp/filecache.csv");
 	define("FIXSIGNATURES", false); // CAUTION: setting this to TRUE may break your files
