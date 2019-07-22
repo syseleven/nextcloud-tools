@@ -3,7 +3,7 @@
 	# usage:
 	# ======
 	#
-	# php ./checksig.php [<filename>*]
+	# php ./check-signature.php [<filename>*]
 
 	# preparation:
 	# ============
@@ -40,6 +40,10 @@
 	define("DEBUG_INFO",    1);
 	define("HEADER_END",    "HEND");
 	define("HEADER_START",  "HBEGIN");
+	define("KEY_MASTER",    0);
+	define("KEY_PUBSHARE",  1);
+	define("KEY_RECOVERY",  2);
+	define("KEY_USER",      3);
 
 	// nextcloud definitions - you can get these values from config/config.php
 	define("DATADIRECTORY", "");
@@ -47,10 +51,20 @@
 	define("SECRET",        "");
 
 	// custom definitions
-	define("DEBUGLEVEL",    DEBUG_DEFAULT);
-	define("FILECACHE",     "/tmp/filecache.csv");
-	define("FIXSIGNATURES", false); // CAUTION: setting this to TRUE may break your files
-	define("STORAGES",      "/tmp/storages.csv");
+	define("DEBUGLEVEL",        DEBUG_DEFAULT);
+	define("FILECACHE",         "/tmp/filecache.csv");
+	define("FIXSIGNATURES",     false); // CAUTION: setting this to TRUE may break your files
+	define("KEYTYPE",           KEY_MASTER);
+	define("RECOVERY_PASSWORD", "");
+	define("STORAGES",          "/tmp/storages.csv");
+	define("USER_NAME",         "");
+	define("USER_PASSWORD",     "");
+
+	// user password definitions - used to check user private keys
+	// replace "USERNAME" with the actual username
+	// define("USER_PASSWORD_USERNAME", "");
+	// define("USER_PASSWORD_USERNAME", "");
+	// define("USER_PASSWORD_USERNAME", "");
 
 	function checkSignature($signature, $expectedSignature) {
 		return hash_equals($signature, $expectedSignature);
@@ -130,7 +144,7 @@
 	}
 
 	function getFilelist($argv) {
-		$result = null;
+		$result = false;
 
 		if (1 < count($argv)) {
 			$result = [];
@@ -151,6 +165,110 @@
 		return $result;
 	}
 
+	function getKeyFilename($keyname) {
+		$result = false;
+
+		switch (KEYTYPE) {
+			case KEY_MASTER:
+			case KEY_PUBSHARE:
+			case KEY_RECOVERY:
+				$result = concatPath(DATADIRECTORY, "files_encryption/OC_DEFAULT_MODULE/".$keyname.".privateKey");
+				break;
+
+			case KEY_USER:
+				$result = concatPath(DATADIRECTORY, $keyname."/files_encryption/OC_DEFAULT_MODULE/".$keyname.".privateKey");
+				break;
+		}
+
+		return $result;
+	}
+
+	function getKeyId() {
+		$result = false;
+
+		switch (KEYTYPE) {
+			case KEY_MASTER:
+				$result = getMasterKeyName();
+				break;
+
+			case KEY_PUBSHARE:
+				$result = "";
+				break;
+
+			case KEY_RECOVERY:
+				$result = "";
+				break;
+
+			case KEY_USER:
+				$result = USER_NAME;
+				break;
+		}
+
+		return $result;
+	}
+
+	function getKeyName() {
+		$result = false;
+
+		switch (KEYTYPE) {
+			case KEY_MASTER:
+				$result = getMasterKeyName();
+				break;
+
+			case KEY_PUBSHARE:
+				$result = getPubShareKeyName();
+				break;
+
+			case KEY_RECOVERY:
+				$result = getRecoveryKeyName();
+				break;
+
+			case KEY_USER:
+				$result = USER_NAME;
+				break;
+		}
+
+		return $result;
+	}
+
+	function getKeyPassword() {
+		$result = false;
+
+		switch (KEYTYPE) {
+			case KEY_MASTER:
+				$result = SECRET;
+				break;
+
+			case KEY_PUBSHARE:
+				$result = "";
+				break;
+
+			case KEY_RECOVERY:
+				$result = RECOVERY_PASSWORD;
+				break;
+
+			case KEY_USER:
+				$result = USER_PASSWORD;
+				break;
+			}
+
+		return $result;
+	}
+
+	function getUserPassword($username) {
+		$result = false;
+
+		if (USER_NAME === $username) {
+			$result = USER_PASSWORD;
+		} else {
+			if (defined("USER_PASSWORD_".strtoupper($username))) {
+				$result = constant("USER_PASSWORD_".strtoupper($username));
+			}
+		}
+
+		return $result;
+	}
+
 	function getKeySize($cipher) {
 		$result = false;
 
@@ -166,14 +284,46 @@
 		return $result;
 	}
 
-	function getMasterKeyId() {
+	function getMasterKeyName() {
 		$result = false;
 
 		$filelist = recursiveScandir(concatPath(DATADIRECTORY, "files_encryption/OC_DEFAULT_MODULE/"));
 		foreach ($filelist as $filename) {
 			if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-			                     "files_encryption/OC_DEFAULT_MODULE/(?<masterkeyid>master_[0-9a-z]+)\.privateKey$@", $filename, $matches)) {
-				$result = $matches["masterkeyid"];
+			                     "files_encryption/OC_DEFAULT_MODULE/(?<keyid>master_[0-9a-z]+)\.privateKey$@", $filename, $matches)) {
+				$result = $matches["keyid"];
+
+				break;
+			}
+		}
+
+		return $result;
+	}
+
+	function getPubShareKeyName() {
+		$result = false;
+
+		$filelist = recursiveScandir(concatPath(DATADIRECTORY, "files_encryption/OC_DEFAULT_MODULE/"));
+		foreach ($filelist as $filename) {
+			if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+			                     "files_encryption/OC_DEFAULT_MODULE/(?<keyid>pubShare_[0-9a-z]+)\.privateKey$@", $filename, $matches)) {
+				$result = $matches["keyid"];
+
+				break;
+			}
+		}
+
+		return $result;
+	}
+
+	function getRecoveryKeyName() {
+		$result = false;
+
+		$filelist = recursiveScandir(concatPath(DATADIRECTORY, "files_encryption/OC_DEFAULT_MODULE/"));
+		foreach ($filelist as $filename) {
+			if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+			                     "files_encryption/OC_DEFAULT_MODULE/(?<keyid>recoveryKey_[0-9a-z]+)\.privateKey$@", $filename, $matches)) {
+				$result = $matches["keyid"];
 
 				break;
 			}
@@ -330,18 +480,18 @@
 		return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
 	}
 
-	function checkFile($file, $filekey, $masterkey, $sharekey, $version = 0, $position = 0) {
+	function checkFile($file, $filekey, $key, $sharekey, $version = 0, $position = 0) {
 		$result = false;
 
 		debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
 		debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
 
-		$masterkeyid = getMasterKeyId();
-		debug("\$masterkeyid = ".var_export($masterkeyid, true), DEBUG_DEBUG);
+		$keyid = getKeyId();
+		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
 
-		if (false !== $masterkeyid) {
-			$masterkeyModified = decryptPrivateKey($masterkey, SECRET, $masterkeyid);
-			if (openssl_open($filekey, $filekeyModified, $sharekey, $masterkeyModified)) {
+		if (false !== $keyid) {
+			$keyModified = decryptPrivateKey($key, getKeyPassword(), $keyid);
+			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified)) {
 				$result = true;
 
 				$strlen = strlen($file);
@@ -421,9 +571,9 @@
 	function checkMasterKey($file, $version = 0, $position = 0) {
 		$result = false;
 
-		$masterkeyid = getMasterKeyId();
-		if (false !== $masterkeyid) {
-			$result = checkPrivateKey($file, SECRET, $masterkeyid, $version, $position);
+		$keyid = getMasterKeyId();
+		if (false !== $keyid) {
+			$result = checkPrivateKey($file, SECRET, $keyid, $version, $position);
 		}
 
 		return $result;
@@ -433,19 +583,33 @@
 		return checkPrivateKey($file, "", "", $version, $position);
 	}
 
-	function fixFile($file, $filename, $filekey, $masterkey, $sharekey, $version = 0, $position = 0) {
+	function checkRecoveryKey($file, $version = 0, $position = 0) {
+		return checkPrivateKey($file, RECOVERY_PASSWORD, "", $version, $position);
+	}
+
+	function checkUserKey($file, $username, $version = 0, $position = 0) {
+		$result = false;
+
+		$password = getUserPassword($username);
+		if (false !== $password) {
+			$result = checkPrivateKey($file, $password, $username, $version, $position);
+		}
+
+		return $result;
+	}
+
+	function fixFile($file, $filename, $filekey, $key, $sharekey, $version = 0, $position = 0) {
 		$result = false;
 
 		debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
 		debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
 
-		$masterkeyid = getMasterKeyId();
-		debug("\$masterkeyid = ".var_export($masterkeyid, true), DEBUG_DEBUG);
+		$keyid = getKeyId();
+		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
 
-		if (false !== $masterkeyid) {
- 			$masterkeyModified = decryptPrivateKey($masterkey, SECRET, $masterkeyid);
-			if (openssl_open($filekey, $filekeyModified, $sharekey, $masterkeyModified)) {
-
+		if (false !== $keyid) {
+			$keyModified = decryptPrivateKey($key, getKeyPassword(), $keyid);
+			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified)) {
 				$fileModified = $file;
 				$strlen       = strlen($file);
 				for ($i = 0; $i < intval(ceil($strlen/BLOCKSIZE)); $i++) {
@@ -486,7 +650,7 @@
 					}
 				}
 
-				if (checkFile($fileModified, $filekey, $masterkey, $sharekey, $version, $position)) {
+				if (checkFile($fileModified, $filekey, $key, $sharekey, $version, $position)) {
 					$result = (false !== file_put_contents($filename, $fileModified));
 				}
 			}
@@ -542,9 +706,9 @@
 	function fixMasterKey($file, $filename, $version = 0, $position = 0) {
 		$result = false;
 
-		$masterkeyid = getMasterKeyId();
-		if (false !== $masterkeyid) {
-			$result = fixPrivateKey($file, $filename, SECRET, $masterkeyid, $version, $position);
+		$keyid = getMasterKeyId();
+		if (false !== $keyid) {
+			$result = fixPrivateKey($file, $filename, SECRET, $keyid, $version, $position);
 		}
 
 		return $result;
@@ -552,6 +716,21 @@
 
 	function fixPubShareKey($file, $filename, $version = 0, $position = 0) {
 		return fixPrivateKey($file, $filename, "", "", $version, $position);
+	}
+
+	function fixRecoveryKey($file, $filename, $version = 0, $position = 0) {
+		return fixPrivateKey($file, $filename, RECOVERY_PASSWORD, "", $version, $position);
+	}
+
+	function fixUserKey($file, $filename, $username, $version = 0, $position = 0) {
+		$result = false;
+
+		$password = getUserPassword($username);
+		if (false !== $password) {
+			$result = fixPrivateKey($file, $filename, $password, $username, $version, $position);
+		}
+
+		return $result;
 	}
 
 	function handleMasterKey($filename, $filecache) {
@@ -616,24 +795,85 @@
 		}
 	}
 
-	function handleFile($filename, $filecache, $username, $datafilename, $istrashbin = false) {
-		$masterkeyid = getMasterKeyId();
-		if (false === $masterkeyid) {
-			debug("$filename: Master key ID could not be retrieved.", DEBUG_DEFAULT);
+	function handleRecoveryKey($filename, $filecache) {
+		if (!array_key_exists($filename, $filecache)) {
+			debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 		} else {
-			$masterkeyname = concatPath(DATADIRECTORY,
-			                            "files_encryption/OC_DEFAULT_MODULE/".$masterkeyid.".privateKey");
+			$version = intval($filecache[$filename]);
+
+			if (!is_file($filename)) {
+				debug("$filename: File is not a file.", DEBUG_DEFAULT);
+			} else {
+				$file = file_get_contents($filename);
+				if (false === $file) {
+					debug("$filename: File could not be read.", DEBUG_DEFAULT);
+				} else {
+					if (!checkRecoveryKey($file, $version)) {
+						debug("$filename: Recovery key signature mismatch.", DEBUG_DEFAULT);
+
+						if (FIXSIGNATURES) {
+							if (!fixRecoveryKey($file, $filename, $version)) {
+								debug("$filename: Recovery key signature not fixed.", DEBUG_DEFAULT);
+							} else {
+								debug("$filename: Recovery key signature fixed.", DEBUG_DEFAULT);
+							}
+						}
+					} else {
+						debug("$filename: OK", DEBUG_INFO);
+					}
+				}
+			}
+		}
+	}
+
+	function handleUserKey($filename, $filecache, $username) {
+		if (!array_key_exists($filename, $filecache)) {
+			debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
+		} else {
+			$version = intval($filecache[$filename]);
+
+			if (!is_file($filename)) {
+				debug("$filename: File is not a file.", DEBUG_DEFAULT);
+			} else {
+				$file = file_get_contents($filename);
+				if (false === $file) {
+					debug("$filename: File could not be read.", DEBUG_DEFAULT);
+				} else {
+					if (!checkUserKey($file, $username, $version)) {
+						debug("$filename: User key signature mismatch.", DEBUG_DEFAULT);
+
+						if (FIXSIGNATURES) {
+							if (!fixUserKey($file, $filename, $username, $version)) {
+								debug("$filename: User key signature not fixed.", DEBUG_DEFAULT);
+							} else {
+								debug("$filename: User key signature fixed.", DEBUG_DEFAULT);
+							}
+						}
+					} else {
+						debug("$filename: OK", DEBUG_INFO);
+					}
+				}
+			}
+		}
+	}
+
+	function handleFile($filename, $filecache, $username, $datafilename, $istrashbin = false) {
+		$keyname = getKeyName();
+		if (false === $keyname) {
+			debug("$filename: Key ID could not be retrieved.", DEBUG_DEFAULT);
+		} else {
+			$keyfilename = getKeyFilename($keyname);
 
 			if ($istrashbin) {
-				$filekeyname  = concatPath(DATADIRECTORY,
-					                   $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-				$sharekeyname = concatPath(DATADIRECTORY,
-				                           $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$masterkeyid.".shareKey");
+				$filekeyfilename  = concatPath(DATADIRECTORY,
+					                             $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+				$sharekeyfilename = concatPath(DATADIRECTORY,
+				                               $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$keyname.".shareKey");
 			} else {
-				$filekeyname  = concatPath(DATADIRECTORY,
-				                           $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-				$sharekeyname = concatPath(DATADIRECTORY,
-				                           $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$masterkeyid.".shareKey");
+				$filekeyfilename  = concatPath(DATADIRECTORY,
+				                               $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+				$sharekeyfilename = concatPath(DATADIRECTORY,
+				                               $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$keyname.".shareKey");
 			}
 
 			if (!array_key_exists($filename, $filecache)) {
@@ -646,36 +886,36 @@
 					if (!is_file($filename)) {
 						debug("$filename: File is not a file.", DEBUG_DEFAULT);
 					} else {
-						if (!is_file($masterkeyname)) {
-							debug("$filename: Masterkey is not a file.", DEBUG_DEFAULT);
+						if (!is_file($keyfilename)) {
+							debug("$filename: Key is not a file.", DEBUG_DEFAULT);
 						} else {
-							if (!is_file($filekeyname)) {
+							if (!is_file($filekeyfilename)) {
 								debug("$filename: Filekey is not a file.", DEBUG_DEFAULT);
 							} else {
-								if (!is_file($sharekeyname)) {
+								if (!is_file($sharekeyfilename)) {
 									debug("$filename: Sharekey is not a file.", DEBUG_DEFAULT);
 								} else {
 									$file = file_get_contents($filename);
 									if (false === $file) {
 										debug("$filename: File could not be read.", DEBUG_DEFAULT);
 									} else {
-										$masterkey = file_get_contents($masterkeyname);
-										if (false === $masterkey) {
-											debug("$filename: Masterkey could not be read.", DEBUG_DEFAULT);
+										$key = file_get_contents($keyfilename);
+										if (false === $key) {
+											debug("$filename: Key could not be read.", DEBUG_DEFAULT);
 										} else {
-											$filekey = file_get_contents($filekeyname);
+											$filekey = file_get_contents($filekeyfilename);
 											if (false === $filekey) {
 												debug("$filename: Filekey could not be read.", DEBUG_DEFAULT);
 											} else {
-												$sharekey = file_get_contents($sharekeyname);
+												$sharekey = file_get_contents($sharekeyfilename);
 												if (false === $sharekey) {
 													debug("$filename: Sharekey could not be read.", DEBUG_DEFAULT);
 												} else {
-													if (!checkFile($file, $filekey, $masterkey, $sharekey, $version)) {
+													if (!checkFile($file, $filekey, $key, $sharekey, $version)) {
 														debug("$filename: File signature mismatch.", DEBUG_DEFAULT);
 
 														if (FIXSIGNATURES) {
-															if (!fixFile($file, $filename, $filekey, $masterkey, $sharekey, $version)) {
+															if (!fixFile($file, $filename, $filekey, $key, $sharekey, $version)) {
 																debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
 															} else {
 																debug("$filename: File signature fixed.", DEBUG_DEFAULT);
@@ -720,8 +960,15 @@
 				                           "files_encryption/OC_DEFAULT_MODULE/pubShare_[0-9a-z]+\.privateKey$@", $filename)) {
 					handlePubShareKey($filename, $filecache);
 				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+				                           "files_encryption/OC_DEFAULT_MODULE/recoveryKey_[0-9a-z]+\.privateKey$@", $filename)) {
+					handleRecoveryKey($filename, $filecache);
+				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
 				                           "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
 					handleFile($filename, $filecache, $matches["username"], $matches["datafilename"], false);
+				} elseif ((1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+				                            "(?<username>[^/]+)/files_encryption/OC_DEFAULT_MODULE/(?<username2>.+)\.privateKey$@", $filename, $matches)) &&
+				          ($matches["username"] === $matches["username2"])) {
+					handleUserKey($filename, $filecache, $matches["username"]);
 				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
 				                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
 					handleFile($filename, $filecache, $matches["username"], $matches["datafilename"], true);
