@@ -4,19 +4,33 @@
 	# ======
 	#
 	# php ./check-signature.php [<filename>*]
-
-	# preparation:
-	# ============
+	#
+	#
+	# preparation of PostgreSQL:
+	# ==========================
 	#
 	# sudo -u <dbuser> psql -d <dbname>
-	#
 	#
 	# \COPY (SELECT storage, path, encrypted FROM oc_filecache) TO '/tmp/filecache.csv' WITH CSV DELIMITER ',';
 	# \COPY (SELECT numeric_id, id FROM oc_storages) TO '/tmp/storages.csv' WITH CSV DELIMITER ',';
 	# \q
 	#
 	#
-	# /tmp/filecache.csv must have this format:
+	# preparation of MariaDB/MySQL:
+	# =============================
+	#
+	# sudo mysql -D <dbname>
+	#
+	# SELECT storage, path, encrypted FROM oc_filecache INTO OUTFILE '/var/lib/mysql-files/filecache.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+	# SELECT numeric_id, id FROM oc_storages INTO OUTFILE '/var/lib/mysql-files/storages.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+	# QUIT;
+	#
+	# sudo mv /var/lib/mysql-files/filecache.csv /tmp/
+	# sudo mv /var/lib/mysql-files/storages.csv /tmp/
+	#
+	#
+	# file structure of /tmp/filecache.csv:
+	# =====================================
 	#
 	# <storage>,<path>,<encrypted>
 	# <storage>,<path>,<encrypted>
@@ -25,7 +39,8 @@
 	# <storage>,<path>,<encrypted>
 	#
 	#
-	# /tmp/storages.csv must have this format:
+	# file structure of /tmp/storages.csv:
+	# ====================================
 	#
 	# <numeric_id>,<id>
 	# <numeric_id>,<id>
