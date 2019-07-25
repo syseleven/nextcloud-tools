@@ -586,7 +586,7 @@
 	function checkMasterKey($file, $version = 0, $position = 0) {
 		$result = false;
 
-		$keyid = getMasterKeyId();
+		$keyid = getMasterKeyName();
 		if (false !== $keyid) {
 			$result = checkPrivateKey($file, SECRET, $keyid, $version, $position);
 		}
