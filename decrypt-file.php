@@ -1,5 +1,11 @@
 <?php
 
+	# decrypt-file.php
+	#
+	# Copyright (c) 2019, SysEleven GmbH
+	# All rights reserved.
+	#
+	#
 	# usage:
 	# ======
 	#
