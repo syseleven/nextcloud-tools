@@ -1,6 +1,6 @@
 # Nextcloud Server-Side Encryption
 
-This document - provided by [SysEleven](https://syseleven.de) - describes the encryption scheme implemented by Nextcloud's default encryption module. This includes:
+This document - provided by [SysEleven](https://syseleven.de) - describes the server-side encryption scheme implemented by Nextcloud's default encryption module. This includes:
 
 * the encryption and signature of files with a master key.
 * the encryption and signature of files with a public sharing key.
@@ -113,7 +113,7 @@ Files contain the actual file content. The file content is encrypted and signed 
 
 #### File Format
 
-The file content is split into blocks of 6072 bytes. Each block is encrypted and Base64 encoded (denoted as `$encryption[0..$n]`). For the encryption an initialization vector of 16 bytes is selected for each block (denoted as `$iv[0..$n]`). Furthermore a hexadecimally encoded message authentication code of 64 bytes is calculated of each block (denoted as `$signature[0..$n]`). An encrypted block has a total size of 8192 bytes (8096 bytes for `$encrypted[]`, 6 bytes for `"00iv00"`, 16 bytes for `$iv[]`, 7 bytes for `"00sig00"`, 64 bytes for `$signature[]` and 3 bytes for `"xxx"`). Only the last encrypted block may be shorter. The header of the encrypted file is padded with `8147` bytes of `"-"` (denoted as `$padding`) to a total of 8192 bytes. The resulting file contains:
+The file content is split into blocks of 6072 bytes. Each block is encrypted and Base64 encoded (denoted as `$encryption[0..$n]`). For the encryption an initialization vector of 16 bytes is selected for each block (denoted as `$iv[0..$n]`). Furthermore a hexadecimally encoded message authentication code of 64 bytes is calculated of each block (denoted as `$signature[0..$n]`). An encrypted block has a total size of 8192 bytes (8096 bytes for `$encrypted[]`, 6 bytes for `"00iv00"`, 16 bytes for `$iv[]`, 7 bytes for `"00sig00"`, 64 bytes for `$signature[]` and 3 bytes for `"xxx"`). Only the last encrypted block may be shorter. The header of the encrypted file is padded with 8147 bytes of `"-"` (denoted as `$padding`) to a total of 8192 bytes. The resulting file contains:
 
 ```
 "HBEGIN:cipher:AES-256-CTR:keyFormat:hash:HEND".$padding.
@@ -143,7 +143,7 @@ The key pair has to be generated with the `openssl_pkey_new()` function. Then th
 
 The public key is written to the `$username.".publicKey"` file.
 
-### Store th Private Key
+### Store the Private Key
 
 #### Derive the Encryption Key
 
@@ -230,11 +230,11 @@ The encrypted file is written to the file with the derived `$encrypted[0..$n]`, 
 
 The private key is read from the `$username.".privateKey"` file and the values `$encrypted`, `$iv` and `$signature` are parsed as documented in the section "File Types".
 
-#### Derive the Encryption Key
+#### Derive the Decryption Key
 
-The salt for the encryption key is derived by creating a raw SHA256 hash of `$uid.$instanceId.$instanceSecret` with the `hash()` function. `$instanceId` can be retrieved as `instanceid` from the Nextcloud configuration file (`"config/config.php"`). `$instanceSecret` can be retrieved as `secret` from the Nextcloud configuration file (`"config/config.php"`).
+The salt for the decryption key is derived by creating a raw SHA256 hash of `$uid.$instanceId.$instanceSecret` with the `hash()` function. `$instanceId` can be retrieved as `instanceid` from the Nextcloud configuration file (`"config/config.php"`). `$instanceSecret` can be retrieved as `secret` from the Nextcloud configuration file (`"config/config.php"`).
 
-The encryption key is then derived by creating a raw SHA256-PBKDF2 hash of the password with the salt, 100.000 rounds and (by default) with a target size of 32 bytes (as required for AES-256-CTR) with the `hash_hmac()` function (denoted as `$passphrase`).
+The decryption key is then derived by creating a raw SHA256-PBKDF2 hash of the password with the salt, 100.000 rounds and (by default) with a target size of 32 bytes (as required for AES-256-CTR) with the `hash_hmac()` function (denoted as `$passphrase`).
 
 The used password depends on the key type:
 
