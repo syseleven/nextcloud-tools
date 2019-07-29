@@ -17,9 +17,9 @@ To export the necessary CSV files from MariaDB/MySQL you have to connect to the 
 Then you can execute the export:
 
 ```
-SELECT storage, path, encrypted FROM oc_filecache INTO OUTFILE '/var/lib/mysql-files/filecache.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+SELECT storage, path, encrypted FROM oc_filecache INTO OUTFILE '/var/lib/mysql-files/filecache.csv' FIELDS ESCAPED BY '' TERMINATED BY ',' LINES TERMINATED BY '\n';
 
-SELECT numeric_id, id FROM oc_storages INTO OUTFILE '/var/lib/mysql-files/storages.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+SELECT numeric_id, id FROM oc_storages INTO OUTFILE '/var/lib/mysql-files/storages.csv' FIELDS ESCAPED BY '' TERMINATED BY ',' LINES TERMINATED BY '\n';
 
 QUIT;
 ```

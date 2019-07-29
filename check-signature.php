@@ -27,8 +27,8 @@
 	#
 	# sudo mysql -D <dbname>
 	#
-	# SELECT storage, path, encrypted FROM oc_filecache INTO OUTFILE '/var/lib/mysql-files/filecache.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
-	# SELECT numeric_id, id FROM oc_storages INTO OUTFILE '/var/lib/mysql-files/storages.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+	# SELECT storage, path, encrypted FROM oc_filecache INTO OUTFILE '/var/lib/mysql-files/filecache.csv' FIELDS ESCAPED BY '' TERMINATED BY ',' LINES TERMINATED BY '\n';
+	# SELECT numeric_id, id FROM oc_storages INTO OUTFILE '/var/lib/mysql-files/storages.csv' FIELDS ESCAPED BY '' TERMINATED BY ',' LINES TERMINATED BY '\n';
 	# QUIT;
 	#
 	# sudo mv /var/lib/mysql-files/filecache.csv /tmp/
@@ -407,6 +407,13 @@
 						if (false !== strpos($name, "::")) {
 							$type = substr($name, 0, strpos($name, "::"));
 							$name = substr($name, strpos($name, "::")+2);
+
+							// make sure that file name is not enclosed in quotes
+							if ((2 <= strlen($name)) &&
+							    ("\"" === $name[0]) &&
+							    ("\"" === $name[strlen($name)-1])) {
+								$name = substr($name, 1, -1);
+							}
 
 							if ("home" === $type) {
 								$storages[$id] = concatPath(DATADIRECTORY, $name);
