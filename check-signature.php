@@ -672,7 +672,10 @@
 									$signaturePos -= strlen("xxx");
 								}
 
-								$fileModified = substr_replace($fileModified, $signature, $signaturePos, strlen($signature));
+								#$fileModified = substr_replace($fileModified, $signature, $signaturePos, strlen($signature));
+								for ($j = 0; $j < strlen($signature); $j++) {
+									$fileModified[$signaturePos+$j] = $signature[$j];
+								}
 							}
 						}
 					}
@@ -720,7 +723,10 @@
 					$signaturePos -= strlen("xxx");
 				}
 
-				$fileModified = substr_replace($file, $signature, $signaturePos, strlen($signature));
+				#$fileModified = substr_replace($file, $signature, $signaturePos, strlen($signature));
+				for ($j = 0; $j < strlen($signature); $j++) {
+					$fileModified[$signaturePos+$j] = $signature[$j];
+				}
 
 				if (checkPrivateKey($fileModified, $password, $keyid, $version, $position)) {
 					$result = (false !== file_put_contents($filename, $fileModified));
