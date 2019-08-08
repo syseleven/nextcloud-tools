@@ -77,7 +77,7 @@ The `check-signature.php` script supports two different ways of execution.
 
 #### Check individual files
 
-The `check-signature.php` scripts supports to check individual files. In order to do this the script has to be called with the names of the files that shall be checked. The files have to be referenced with their absolute path or with their path relative to the Nextcloud `datadirectory` folder.
+The `check-signature.php` script supports to check individual files. In order to do this the script has to be called with the names of the files that shall be checked. The files have to be referenced with their absolute path or with their path relative to the Nextcloud `datadirectory` folder.
 
 #### Check the whole data directory
 
