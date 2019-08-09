@@ -59,6 +59,9 @@
 	define("DEBUG_DEBUG",   2);
 	define("DEBUG_DEFAULT", 0);
 	define("DEBUG_INFO",    1);
+	define("FIX_DATABASE",  1);
+	define("FIX_FILE",      2);
+	define("FIX_NONE",      0);
 	define("HEADER_END",    "HEND");
 	define("HEADER_START",  "HBEGIN");
 	define("KEY_MASTER",    0);
@@ -68,14 +71,16 @@
 
 	// nextcloud definitions - you can get these values from config/config.php
 	define("DATADIRECTORY", "");
+	define("DBTABLEPREFIX", "oc_");
 	define("INSTANCEID",    "");
 	define("SECRET",        "");
 
 	// custom definitions
 	define("DEBUGLEVEL",        DEBUG_DEFAULT);
 	define("FILECACHE",         "/tmp/filecache.csv");
-	define("FIXSIGNATURES",     false); // CAUTION: setting this to TRUE may break your files
+	define("FIXSIGNATURES",     FIX_NONE); // CAUTION: setting this to FIX_FILE may break your files
 	define("KEYTYPE",           KEY_MASTER);
+	define("MAXVERSION",        50);
 	define("RECOVERY_PASSWORD", "");
 	define("STORAGES",          "/tmp/storages.csv");
 	define("USER_NAME",         "");
@@ -434,7 +439,7 @@
 									$version  = substr($files_item, strrpos($files_item, ",")+1);
 
 									if (array_key_exists($storage, $storages)) {
-										$result[concatPath($storages[$storage], $filename)] = $version;
+										$result[concatPath($storages[$storage], $filename)] = ["encrypted" => $version, "path" => $filename, "storage" => $storage];
 									}
 								}
 							}
@@ -508,11 +513,10 @@
 		return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
 	}
 
-	function checkFile($file, $filekey, $key, $sharekey, $version = 0, $position = 0) {
+	function checkFile($file, $filekey, $key, $sharekey, $version = 0) {
 		$result = false;
 
 		debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
-		debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
 
 		$keyid = getKeyId();
 		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
@@ -533,19 +537,20 @@
 
 						$temp = true;
 					} else {
-						$positionModified = ($i-1);
-						if (intval(ceil($strlen/BLOCKSIZE)) === ($i+1)) {
-							$positionModified .= "end";
-						}
-						debug("\$position = ".var_export($positionModified, true), DEBUG_DEBUG);
-
 						$meta = splitMetaData($block);
 						debug("\$meta = ".var_export($meta, true), DEBUG_DEBUG);
 
 						if (array_key_exists("encrypted", $meta) &&
 						    array_key_exists("signature", $meta) &&
 						    (false !== $meta["signature"])) {
-						    	$signature = createSignature($meta["encrypted"], $filekeyModified.$version.$positionModified);
+							// use dynamic position for file
+							$position = ($i-1);
+							if (intval(ceil($strlen/BLOCKSIZE)) === ($i+1)) {
+								$position .= "end";
+							}
+							debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
+
+							$signature = createSignature($meta["encrypted"], $filekeyModified.$version.$position);
 							debug("\$signature = ".var_export($signature, true), DEBUG_DEBUG);
 
 							if (false !== $signature) {
@@ -562,12 +567,11 @@
 		return $result;
 	}
 
-	function checkPrivateKey($file, $password, $keyid, $version = 0, $position = 0) {
+	function checkPrivateKey($file, $password, $keyid, $version = 0) {
 		$result = false;
 
 		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
 		debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
-		debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
 	
 		$header = parseHeader($file);
 		debug("\$header = ".var_export($header, true), DEBUG_DEBUG);
@@ -585,6 +589,10 @@
 				$passwordModified = generatePasswordHash($passwordModified, $header["cipher"], $keyid);
 			}
 
+			// use static position for private key file
+			$position = 0;
+			debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
+
 			$signature = createSignature(stripHeader($meta["encrypted"]), $passwordModified.$version.$position);
 			debug("\$signature = ".var_export($signature, true), DEBUG_DEBUG);
 
@@ -596,41 +604,117 @@
 		return $result;
 	}
 
-	function checkMasterKey($file, $version = 0, $position = 0) {
+	function checkMasterKey($file, $version = 0) {
 		$result = false;
 
-		$keyid = getMasterKeyName();
-		if (false !== $keyid) {
-			$result = checkPrivateKey($file, SECRET, $keyid, $version, $position);
+		$keyname = getMasterKeyName();
+		if (false !== $keyname) {
+			$result = checkPrivateKey($file, SECRET, $keyname, $version);
 		}
 
 		return $result;
 	}
 
-	function checkPubShareKey($file, $version = 0, $position = 0) {
-		return checkPrivateKey($file, "", "", $version, $position);
+	function checkPubShareKey($file, $version = 0) {
+		return checkPrivateKey($file, "", "", $version);
 	}
 
-	function checkRecoveryKey($file, $version = 0, $position = 0) {
-		return checkPrivateKey($file, RECOVERY_PASSWORD, "", $version, $position);
+	function checkRecoveryKey($file, $version = 0) {
+		return checkPrivateKey($file, RECOVERY_PASSWORD, "", $version);
 	}
 
-	function checkUserKey($file, $username, $version = 0, $position = 0) {
+	function checkUserKey($file, $username, $version = 0) {
 		$result = false;
 
 		$password = getUserPassword($username);
 		if (false !== $password) {
-			$result = checkPrivateKey($file, $password, $username, $version, $position);
+			$result = checkPrivateKey($file, $password, $username, $version);
 		}
 
 		return $result;
 	}
 
-	function fixFile($file, $filename, $filekey, $key, $sharekey, $version = 0, $position = 0) {
+	function fixDatabase($file, $filekey, $key, $sharekey, $storage, $path) {
+		$result = false;
+
+		$keyid = getKeyId();
+		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
+
+		if (false !== $keyid) {
+			$keyModified = decryptPrivateKey($key, getKeyPassword(), $keyid);
+			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified)) {
+				$strlen = strlen($file);
+				for ($i = 0; $i <= 1; $i++) {
+					$block = substr($file, $i*BLOCKSIZE, BLOCKSIZE);
+
+					if (0 === $i) {
+						$header = parseHeader($block);
+						debug("\$header = ".var_export($header, true), DEBUG_DEBUG);
+					} else {
+						$meta = splitMetaData($block);
+						debug("\$meta = ".var_export($meta, true), DEBUG_DEBUG);
+
+						if (array_key_exists("encrypted", $meta) &&
+						    array_key_exists("signature", $meta) &&
+						    (false !== $meta["signature"])) {
+							// use dynamic position for files
+							$position = ($i-1);
+							if (intval(ceil($strlen/BLOCKSIZE)) === ($i+1)) {
+								$position .= "end";
+							}
+							debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
+
+							for ($version = 0; $version <= MAXVERSION; $version++) {
+								debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
+
+								$signature = createSignature($meta["encrypted"], $filekeyModified.$version.$position);
+								debug("\$signature = ".var_export($signature, true), DEBUG_DEBUG);
+
+								if (false !== $signature) {
+									if (checkSignature($signature, $meta["signature"])) {
+										// we found the correct signature and now have to calculate the unencrypted file size
+										debug("\$strlen = ".var_export($strlen, true), DEBUG_DEBUG);
+
+										// first try to find out the correct encryption padding length
+										$encryptionPadding = 0;
+										if (hasPadding($block, true)) {
+											$encryptionPadding = strlen("xxx");
+										} elseif (hasPadding($block, false)) {
+											$encryptionPadding = strlen("xx");
+										}
+										debug("\$encryptionPadding = ".var_export($encryptionPadding, true), DEBUG_DEBUG);
+
+										// then try to find out the correct base64 padding length
+										$base64Padding = 0;
+										while ("=" === $file[($strlen - (6 + 16 + 7 + 64 + $encryptionPadding) - ($base64Padding + 1))]) {
+											$base64Padding++;
+										}
+										debug("\$base64Padding = ".var_export($base64Padding, true), DEBUG_DEBUG);
+
+										// finally calculate the file size
+										$size = intval(floor(($strlen - 8192 - ceil(($strlen - 8192) / 8192) * (6 + 16 + 7 + 64 + $encryptionPadding) - $base64Padding) / 4 * 3));
+										debug("\$size = ".var_export($size, true), DEBUG_DEBUG);
+
+										// WARNING: using addslashes() to escape a string is not secure for SQL queries,
+										// unfortunately correct ways like mysqli_real_escape_string() require an active databse connection
+										$result = "UPDATE ".DBTABLEPREFIX."filecache SET encrypted=$version, size=$size WHERE storage=$storage AND path='".addslashes($path)."';";
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	function fixFile($file, $filename, $filekey, $key, $sharekey, $version = 0) {
 		$result = false;
 
 		debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
-		debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
 
 		$keyid = getKeyId();
 		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
@@ -647,19 +731,20 @@
 						$header = parseHeader($block);
 						debug("\$header = ".var_export($header, true), DEBUG_DEBUG);
 					} else {
-						$positionModified = ($i-1);
-						if (intval(ceil($strlen/BLOCKSIZE)) === ($i+1)) {
-							$positionModified .= "end";
-						}
-						debug("\$position = ".var_export($positionModified, true), DEBUG_DEBUG);
-
 						$meta = splitMetaData($block);
 						debug("\$meta = ".var_export($meta, true), DEBUG_DEBUG);
 
 						if (array_key_exists("encrypted", $meta) &&
 						    array_key_exists("signature", $meta) &&
 						    (false !== $meta["signature"])) {
-						    	$signature = createSignature($meta["encrypted"], $filekeyModified.$version.$positionModified);
+							// use dynamic position for files
+							$position = ($i-1);
+							if (intval(ceil($strlen/BLOCKSIZE)) === ($i+1)) {
+								$position .= "end";
+							}
+							debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
+
+							$signature = createSignature($meta["encrypted"], $filekeyModified.$version.$position);
 							debug("\$signature = ".var_export($signature, true), DEBUG_DEBUG);
 
 							if (false !== $signature) {
@@ -670,6 +755,8 @@
 								$signaturePos -= strlen($signature);
 								if (hasPadding($block, true)) {
 									$signaturePos -= strlen("xxx");
+								} elseif (hasPadding($block, false)) {
+									$signaturePos -= strlen("xx");
 								}
 
 								#$fileModified = substr_replace($fileModified, $signature, $signaturePos, strlen($signature));
@@ -681,7 +768,7 @@
 					}
 				}
 
-				if (checkFile($fileModified, $filekey, $key, $sharekey, $version, $position)) {
+				if (checkFile($fileModified, $filekey, $key, $sharekey, $version)) {
 					$result = (false !== file_put_contents($filename, $fileModified));
 				}
 			}
@@ -690,13 +777,12 @@
 		return $result;
 	}
 
-	function fixPrivateKey($file, $filename, $password, $keyid, $version = 0, $position = 0) {
+	function fixPrivateKeyFile($file, $filename, $password, $keyid, $version = 0) {
 		$result = false;
 
 		debug("\$filename = ".var_export($filename, true), DEBUG_DEBUG);
 		debug("\$keyid = ".var_export($keyid, true), DEBUG_DEBUG);
 		debug("\$version = ".var_export($version, true), DEBUG_DEBUG);
-		debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
 
 		$header = parseHeader($file);
 		debug("\$header = ".var_export($header, true), DEBUG_DEBUG);
@@ -714,6 +800,10 @@
 				$passwordModified = generatePasswordHash($passwordModified, $header["cipher"], $keyid);
 			}
 
+			// use static position for private key file
+			$position = 0;
+			debug("\$position = ".var_export($position, true), DEBUG_DEBUG);
+
 			$signature = createSignature(stripHeader($meta["encrypted"]), $passwordModified.$version.$position);
 			debug("\$signature = ".var_export($signature, true), DEBUG_DEBUG);
 
@@ -724,11 +814,12 @@
 				}
 
 				#$fileModified = substr_replace($file, $signature, $signaturePos, strlen($signature));
+				$fileModified = $file;
 				for ($j = 0; $j < strlen($signature); $j++) {
 					$fileModified[$signaturePos+$j] = $signature[$j];
 				}
 
-				if (checkPrivateKey($fileModified, $password, $keyid, $version, $position)) {
+				if (checkPrivateKey($fileModified, $password, $keyid, $version)) {
 					$result = (false !== file_put_contents($filename, $fileModified));
 				}
 			}
@@ -737,31 +828,31 @@
 		return $result;
 	}
 
-	function fixMasterKey($file, $filename, $version = 0, $position = 0) {
+	function fixMasterKeyFile($file, $filename, $version = 0) {
 		$result = false;
 
-		$keyid = getMasterKeyId();
-		if (false !== $keyid) {
-			$result = fixPrivateKey($file, $filename, SECRET, $keyid, $version, $position);
+		$keyname = getMasterKeyName();
+		if (false !== $keyname) {
+			$result = fixPrivateKeyFile($file, $filename, SECRET, $keyname, $version);
 		}
 
 		return $result;
 	}
 
-	function fixPubShareKey($file, $filename, $version = 0, $position = 0) {
-		return fixPrivateKey($file, $filename, "", "", $version, $position);
+	function fixPubShareKeyFile($file, $filename, $version = 0) {
+		return fixPrivateKeyFile($file, $filename, "", "", $version);
 	}
 
-	function fixRecoveryKey($file, $filename, $version = 0, $position = 0) {
-		return fixPrivateKey($file, $filename, RECOVERY_PASSWORD, "", $version, $position);
+	function fixRecoveryKeyFile($file, $filename, $version = 0) {
+		return fixPrivateKeyFile($file, $filename, RECOVERY_PASSWORD, "", $version);
 	}
 
-	function fixUserKey($file, $filename, $username, $version = 0, $position = 0) {
+	function fixUserKeyFile($file, $filename, $username, $version = 0) {
 		$result = false;
 
 		$password = getUserPassword($username);
 		if (false !== $password) {
-			$result = fixPrivateKey($file, $filename, $password, $username, $version, $position);
+			$result = fixPrivateKeyFile($file, $filename, $password, $username, $version);
 		}
 
 		return $result;
@@ -771,7 +862,7 @@
 		if (!array_key_exists($filename, $filecache)) {
 			debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 		} else {
-			$version = intval($filecache[$filename]);
+			$version = intval($filecache[$filename]["encrypted"]);
 
 			if (!is_file($filename)) {
 				debug("$filename: File is not a file.", DEBUG_DEFAULT);
@@ -783,12 +874,18 @@
 					if (!checkMasterKey($file, $version)) {
 						debug("$filename: Master key signature mismatch.", DEBUG_DEFAULT);
 
-						if (FIXSIGNATURES) {
-							if (!fixMasterKey($file, $filename, $version)) {
-								debug("$filename: Master key signature not fixed.", DEBUG_DEFAULT);
-							} else {
-								debug("$filename: Master key signature fixed.", DEBUG_DEFAULT);
-							}
+						switch (FIXSIGNATURES) {
+							case FIX_DATABASE:
+								debug("$filename: Fix database not supported for master key.", DEBUG_DEFAULT);
+								break;
+
+							case FIX_FILE:
+								if (!fixMasterKeyFile($file, $filename, $version)) {
+									debug("$filename: Master key signature not fixed.", DEBUG_DEFAULT);
+								} else {
+									debug("$filename: Master key signature fixed.", DEBUG_DEFAULT);
+								}
+								break;
 						}
 					} else {
 						debug("$filename: OK", DEBUG_INFO);
@@ -802,7 +899,7 @@
 		if (!array_key_exists($filename, $filecache)) {
 			debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 		} else {
-			$version = intval($filecache[$filename]);
+			$version = intval($filecache[$filename]["encrypted"]);
 
 			if (!is_file($filename)) {
 				debug("$filename: File is not a file.", DEBUG_DEFAULT);
@@ -814,12 +911,18 @@
 					if (!checkPubShareKey($file, $version)) {
 						debug("$filename: Pub share key signature mismatch.", DEBUG_DEFAULT);
 
-						if (FIXSIGNATURES) {
-							if (!fixPubShareKey($file, $filename, $version)) {
-								debug("$filename: Pub share key signature not fixed.", DEBUG_DEFAULT);
-							} else {
-								debug("$filename: Pub share key signature fixed.", DEBUG_DEFAULT);
-							}
+						switch (FIXSIGNATURES) {
+							case FIX_DATABASE:
+								debug("$filename: Fix database not supported for pub share key.", DEBUG_DEFAULT);
+								break;
+
+							case FIX_FILE:
+								if (!fixPubShareKeyFile($file, $filename, $version)) {
+									debug("$filename: Pub share key signature not fixed.", DEBUG_DEFAULT);
+								} else {
+									debug("$filename: Pub share key signature fixed.", DEBUG_DEFAULT);
+								}
+								break;
 						}
 					} else {
 						debug("$filename: OK", DEBUG_INFO);
@@ -833,7 +936,7 @@
 		if (!array_key_exists($filename, $filecache)) {
 			debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 		} else {
-			$version = intval($filecache[$filename]);
+			$version = intval($filecache[$filename]["encrypted"]);
 
 			if (!is_file($filename)) {
 				debug("$filename: File is not a file.", DEBUG_DEFAULT);
@@ -845,12 +948,18 @@
 					if (!checkRecoveryKey($file, $version)) {
 						debug("$filename: Recovery key signature mismatch.", DEBUG_DEFAULT);
 
-						if (FIXSIGNATURES) {
-							if (!fixRecoveryKey($file, $filename, $version)) {
-								debug("$filename: Recovery key signature not fixed.", DEBUG_DEFAULT);
-							} else {
-								debug("$filename: Recovery key signature fixed.", DEBUG_DEFAULT);
-							}
+						switch (FIXSIGNATURES) {
+							case FIX_DATABASE:
+								debug("$filename: Fix database not supported for recovery key.", DEBUG_DEFAULT);
+								break;
+
+							case FIX_FILE:
+								if (!fixRecoveryKeyFile($file, $filename, $version)) {
+									debug("$filename: Recovery key signature not fixed.", DEBUG_DEFAULT);
+								} else {
+									debug("$filename: Recovery key signature fixed.", DEBUG_DEFAULT);
+								}
+								break;
 						}
 					} else {
 						debug("$filename: OK", DEBUG_INFO);
@@ -864,7 +973,7 @@
 		if (!array_key_exists($filename, $filecache)) {
 			debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 		} else {
-			$version = intval($filecache[$filename]);
+			$version = intval($filecache[$filename]["encrypted"]);
 
 			if (!is_file($filename)) {
 				debug("$filename: File is not a file.", DEBUG_DEFAULT);
@@ -876,12 +985,18 @@
 					if (!checkUserKey($file, $username, $version)) {
 						debug("$filename: User key signature mismatch.", DEBUG_DEFAULT);
 
-						if (FIXSIGNATURES) {
-							if (!fixUserKey($file, $filename, $username, $version)) {
-								debug("$filename: User key signature not fixed.", DEBUG_DEFAULT);
-							} else {
-								debug("$filename: User key signature fixed.", DEBUG_DEFAULT);
-							}
+						switch (FIXSIGNATURES) {
+							case FIX_DATABASE:
+								debug("$filename: Fix database not supported for user key.", DEBUG_DEFAULT);
+								break;
+
+							case FIX_FILE:
+								if (!fixUserKeyFile($file, $filename, $username, $version)) {
+									debug("$filename: User key signature not fixed.", DEBUG_DEFAULT);
+								} else {
+									debug("$filename: User key signature fixed.", DEBUG_DEFAULT);
+								}
+								break;
 						}
 					} else {
 						debug("$filename: OK", DEBUG_INFO);
@@ -913,8 +1028,8 @@
 			if (!array_key_exists($filename, $filecache)) {
 				debug("$filename: File not found in filecache.", DEBUG_DEFAULT);
 			} else {
-				$version = intval($filecache[$filename]);
-				if (0 === $version) {
+				$version = intval($filecache[$filename]["encrypted"]);
+				if ((0 === $version) && (FIX_DATABASE !== FIXSIGNATURES)) {
 					debug("$filename: Filecache contains zero version for file.", DEBUG_DEFAULT);
 				} else {
 					if (!is_file($filename)) {
@@ -948,12 +1063,23 @@
 													if (!checkFile($file, $filekey, $key, $sharekey, $version)) {
 														debug("$filename: File signature mismatch.", DEBUG_DEFAULT);
 
-														if (FIXSIGNATURES) {
-															if (!fixFile($file, $filename, $filekey, $key, $sharekey, $version)) {
-																debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
-															} else {
-																debug("$filename: File signature fixed.", DEBUG_DEFAULT);
-															}
+														switch (FIXSIGNATURES) {
+															case FIX_DATABASE:
+																$query = fixDatabase($file, $filekey, $key, $sharekey, $filecache[$filename]["storage"], $filecache[$filename]["path"]);
+																if (false === $query) {
+																	debug("$filename: Database not fixed.", DEBUG_DEFAULT);
+																} else {
+																	debug("$filename: $query", DEBUG_DEFAULT);
+																}
+																break;
+
+															case FIX_FILE:
+																if (!fixFile($file, $filename, $filekey, $key, $sharekey, $version)) {
+																	debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
+																} else {
+																	debug("$filename: File signature fixed.", DEBUG_DEFAULT);
+																}
+																break;
 														}
 													} else {
 														debug("$filename: OK", DEBUG_INFO);
