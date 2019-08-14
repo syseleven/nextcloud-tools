@@ -62,6 +62,7 @@ The custom definitions define how the `check-signature.php` script works interna
 * `FILECACHE` - defines the path of the CSV export of the `oc_filecache` table.
 * `FIXSIGNATURES` - defines whether files with bad signatures shall be fixed. `FIX_NONE` disables this feature. `FIX_DATABASE` tries to generate SQL statements to fix the database entries of the files. `FIX_FILE` tries to rewrite the files with correct signatures. (*Use `FIX_FILE` with caution as it can break your files.*)
 * `KEYTYPE` - defines which key type shall be used to decrypt file keys. `KEY_MASTER` activates the master key support. `KEY_PUBSHARE` activates the public sharing key support. `KEY_RECOVERY` activates the recovery key support. `KEY_USER` activates the user key support.
+* `MAXFILESIZE` - defines the maximum size of handled files in bytes. Set the memory limit accordingly: `php -d memory_limit=<MAXFILESIZE + sizeof(/tmp/filecache.txt) + sizeof(/tmp/storages.txt) + overhead> ./check-signature.php`
 * `MAXVERSION` - defines up to which version number signatures shall be checked when `FIXSIGNATURE` is set to `FIX_DATABASE`.
 * `RECOVERY_PASSWORD` - defines the password of the recovery key when the recovery key support is activated through `KEYTYPE` or when the signature of the recovery private key shall be checked.
 * `STORAGES` - defines the path of the CSV export of the `oc_storages` table.

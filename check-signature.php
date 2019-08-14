@@ -80,6 +80,7 @@
 	define("FILECACHE",         "/tmp/filecache.csv");
 	define("FIXSIGNATURES",     FIX_NONE); // CAUTION: setting this to FIX_FILE may break your files
 	define("KEYTYPE",           KEY_MASTER);
+	define("MAXFILESIZE",       2147483648);
 	define("MAXVERSION",        50);
 	define("RECOVERY_PASSWORD", "");
 	define("STORAGES",          "/tmp/storages.csv");
@@ -1044,45 +1045,54 @@
 								if (!is_file($sharekeyfilename)) {
 									debug("$filename: Sharekey is not a file.", DEBUG_DEFAULT);
 								} else {
-									$file = file_get_contents($filename);
-									if (false === $file) {
-										debug("$filename: File could not be read.", DEBUG_DEFAULT);
+									$filesize = filesize($filename);
+									if (false === $filesize) {
+										debug("$filename: File size could not be retrieved.", DEBUG_DEFAULT);
 									} else {
-										$key = file_get_contents($keyfilename);
-										if (false === $key) {
-											debug("$filename: Key could not be read.", DEBUG_DEFAULT);
+										if (MAXFILESIZE < $filesize) {
+											debug("$filename: File size exceeds max file size.", DEBUG_DEFAULT);
 										} else {
-											$filekey = file_get_contents($filekeyfilename);
-											if (false === $filekey) {
-												debug("$filename: Filekey could not be read.", DEBUG_DEFAULT);
+											$file = file_get_contents($filename);
+											if (false === $file) {
+												debug("$filename: File could not be read.", DEBUG_DEFAULT);
 											} else {
-												$sharekey = file_get_contents($sharekeyfilename);
-												if (false === $sharekey) {
-													debug("$filename: Sharekey could not be read.", DEBUG_DEFAULT);
+												$key = file_get_contents($keyfilename);
+												if (false === $key) {
+													debug("$filename: Key could not be read.", DEBUG_DEFAULT);
 												} else {
-													if (!checkFile($file, $filekey, $key, $sharekey, $version)) {
-														debug("$filename: File signature mismatch.", DEBUG_DEFAULT);
-
-														switch (FIXSIGNATURES) {
-															case FIX_DATABASE:
-																$query = fixDatabase($file, $filekey, $key, $sharekey, $filecache[$filename]["storage"], $filecache[$filename]["path"]);
-																if (false === $query) {
-																	debug("$filename: Database not fixed.", DEBUG_DEFAULT);
-																} else {
-																	debug("$filename: $query", DEBUG_DEFAULT);
-																}
-																break;
-
-															case FIX_FILE:
-																if (!fixFile($file, $filename, $filekey, $key, $sharekey, $version)) {
-																	debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
-																} else {
-																	debug("$filename: File signature fixed.", DEBUG_DEFAULT);
-																}
-																break;
-														}
+													$filekey = file_get_contents($filekeyfilename);
+													if (false === $filekey) {
+														debug("$filename: Filekey could not be read.", DEBUG_DEFAULT);
 													} else {
-														debug("$filename: OK", DEBUG_INFO);
+														$sharekey = file_get_contents($sharekeyfilename);
+														if (false === $sharekey) {
+															debug("$filename: Sharekey could not be read.", DEBUG_DEFAULT);
+														} else {
+															if (!checkFile($file, $filekey, $key, $sharekey, $version)) {
+																debug("$filename: File signature mismatch.", DEBUG_DEFAULT);
+
+																switch (FIXSIGNATURES) {
+																	case FIX_DATABASE:
+																		$query = fixDatabase($file, $filekey, $key, $sharekey, $filecache[$filename]["storage"], $filecache[$filename]["path"]);
+																		if (false === $query) {
+																			debug("$filename: Database not fixed.", DEBUG_DEFAULT);
+																		} else {
+																			debug("$filename: $query", DEBUG_DEFAULT);
+																		}
+																		break;
+
+																	case FIX_FILE:
+																		if (!fixFile($file, $filename, $filekey, $key, $sharekey, $version)) {
+																			debug("$filename: File signature not fixed.", DEBUG_DEFAULT);
+																		} else {
+																			debug("$filename: File signature fixed.", DEBUG_DEFAULT);
+																		}
+																		break;
+																}
+															} else {
+																debug("$filename: OK", DEBUG_INFO);
+															}
+														}
 													}
 												}
 											}
