@@ -673,32 +673,36 @@
 
 								if (false !== $signature) {
 									if (checkSignature($signature, $meta["signature"])) {
-										// we found the correct signature and now have to calculate the unencrypted file size
-										debug("\$strlen = ".var_export($strlen, true), DEBUG_DEBUG);
+										if (checkFile($file, $filekey, $key, $sharekey, $version)) {
+											// we found the correct signature and it fixed the signature check,
+											// now have to calculate the unencrypted file size
+											debug("\$strlen = ".var_export($strlen, true), DEBUG_DEBUG);
 
-										// first try to find out the correct encryption padding length
-										$encryptionPadding = 0;
-										if (hasPadding($block, true)) {
-											$encryptionPadding = strlen("xxx");
-										} elseif (hasPadding($block, false)) {
-											$encryptionPadding = strlen("xx");
+											// first try to find out the correct encryption padding length
+											$encryptionPadding = 0;
+											if (hasPadding($block, true)) {
+												$encryptionPadding = strlen("xxx");
+											} elseif (hasPadding($block, false)) {
+												$encryptionPadding = strlen("xx");
+											}
+											debug("\$encryptionPadding = ".var_export($encryptionPadding, true), DEBUG_DEBUG);
+
+											// then try to find out the correct base64 padding length
+											$base64Padding = 0;
+											while ("=" === $file[($strlen - (6 + 16 + 7 + 64 + $encryptionPadding) - ($base64Padding + 1))]) {
+												$base64Padding++;
+											}
+											debug("\$base64Padding = ".var_export($base64Padding, true), DEBUG_DEBUG);
+
+											// finally calculate the file size
+											$size = intval(floor(($strlen - 8192 - ceil(($strlen - 8192) / 8192) * (6 + 16 + 7 + 64 + $encryptionPadding) - $base64Padding) / 4 * 3));
+											debug("\$size = ".var_export($size, true), DEBUG_DEBUG);
+
+											// WARNING: using addslashes() to escape a string is not secure for SQL queries,
+											// unfortunately correct ways like mysqli_real_escape_string() require an active databse connection
+											$result = "UPDATE ".DBTABLEPREFIX."filecache SET encrypted=$version, size=$size WHERE storage=$storage AND path='".addslashes($path)."';";
 										}
-										debug("\$encryptionPadding = ".var_export($encryptionPadding, true), DEBUG_DEBUG);
 
-										// then try to find out the correct base64 padding length
-										$base64Padding = 0;
-										while ("=" === $file[($strlen - (6 + 16 + 7 + 64 + $encryptionPadding) - ($base64Padding + 1))]) {
-											$base64Padding++;
-										}
-										debug("\$base64Padding = ".var_export($base64Padding, true), DEBUG_DEBUG);
-
-										// finally calculate the file size
-										$size = intval(floor(($strlen - 8192 - ceil(($strlen - 8192) / 8192) * (6 + 16 + 7 + 64 + $encryptionPadding) - $base64Padding) / 4 * 3));
-										debug("\$size = ".var_export($size, true), DEBUG_DEBUG);
-
-										// WARNING: using addslashes() to escape a string is not secure for SQL queries,
-										// unfortunately correct ways like mysqli_real_escape_string() require an active databse connection
-										$result = "UPDATE ".DBTABLEPREFIX."filecache SET encrypted=$version, size=$size WHERE storage=$storage AND path='".addslashes($path)."';";
 										break;
 									}
 								}
