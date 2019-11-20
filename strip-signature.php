@@ -151,7 +151,7 @@
 			$temp  = false;
 
 			if (0 === $i) {
-				$blockModified = "HBEGIN:oc_encryption_module:OC_DEFAULT_MODULE:cipher:AES-256-OFB:HEND".str_repeat("-", 8123);
+				$blockModified = "HBEGIN:oc_encryption_module:OC_DEFAULT_MODULE:cipher:AES-256-CFB:HEND".str_repeat("-", 8123);
 
 				if (strlen($block) === strlen($blockModified)) {
 					print($blockModified);
