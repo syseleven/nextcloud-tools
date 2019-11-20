@@ -106,9 +106,7 @@
 				if ("/" !== $result[0]) {
 					$result = concatPath(DATADIRECTORY, $result);
 				}
-
 			}
-
 		}
 
 		return $result;
