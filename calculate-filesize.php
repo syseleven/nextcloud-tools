@@ -150,7 +150,7 @@
 				debug("\$meta = ".var_export($meta, true), DEBUG_DEBUG);
 
 				if (array_key_exists("encrypted", $meta)) {
-					$blocksize = base64_decode($meta["encrypted"]);
+					$blocksize = strlen(base64_decode($meta["encrypted"]));
 
 					if (false !== $blocksize) {
 						$filesize += $blocksize;
