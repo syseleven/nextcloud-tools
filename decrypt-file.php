@@ -100,7 +100,7 @@
 	function getFilename($argv) {
 		$result = null;
 
-		if (1 < count($argv)) {
+		if (2 <= count($argv)) {
 			$result = $argv[1];
 			if (0 < strlen($result)) {
 				if ("/" !== $result[0]) {

@@ -173,7 +173,7 @@
 	function getFilelist($argv) {
 		$result = false;
 
-		if (1 < count($argv)) {
+		if (2 <= count($argv)) {
 			$result = [];
 			for ($i = 1; $i < count($argv); $i++) {
 				$filename = $argv[$i];
