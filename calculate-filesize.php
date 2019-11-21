@@ -163,6 +163,11 @@
 			$result = ($result && $temp);
 		}
 
+                # print the file size
+                if ($result) {
+                        print(strval($filesize));
+                }
+
 		return $result;
 	}
 
@@ -182,11 +187,6 @@
 					$result = 0;
 				}
 			}
-		}
-
-		# print the file size
-		if ($result) {
-			print($filesize);
 		}
 
 		return $result;
