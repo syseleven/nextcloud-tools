@@ -238,4 +238,4 @@ The script outputs the result to STDOUT so it is advised to pipe the output into
 
 ## server-side-encryption.md
 
-The document `server-side-encryption.md` contains the collected knowledge of [SysEleven](https://syseleven.de) about the file types and key types as well as the key pair generation, file encryption and file decryption processes of Nextcloud.
+The document `server-side-encryption.md` contains the collected knowledge of [SysEleven](https://syseleven.de) about the file types and key types as well as the key pair generation, file encryption and file decryption processes of Nextcloud. It has become part of the official [Nextcloud Administration Manual](https://docs.nextcloud.com/server/latest/admin_manual/configuration_files/encryption_details.html).
