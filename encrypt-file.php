@@ -2,7 +2,7 @@
 
 	# encrypt-file.php
 	#
-	# Copyright (c) 2019, SysEleven GmbH
+	# Copyright (c) 2019-2020, SysEleven GmbH
 	# All rights reserved.
 	#
 	#

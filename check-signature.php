@@ -2,7 +2,7 @@
 
 	# check-signature.php
 	#
-	# Copyright (c) 2019, SysEleven GmbH
+	# Copyright (c) 2019-2020, SysEleven GmbH
 	# All rights reserved.
 	#
 	#
@@ -87,11 +87,12 @@
 	define("USER_NAME",         "");
 	define("USER_PASSWORD",     "");
 
-	// user password definitions - used to check user private keys
-	// replace "USERNAME" with the actual username
-	// define("USER_PASSWORD_USERNAME", "");
-	// define("USER_PASSWORD_USERNAME", "");
-	// define("USER_PASSWORD_USERNAME", "");
+        // user password definitions
+        // replace "USERNAMEA", "USERNAMEB", "USERNAMEC" with the actual usernames
+        // you can add or remove entries as necessary
+        // define("USER_PASSWORD_USERNAMEA", "");
+        // define("USER_PASSWORD_USERNAMEB", "");
+        // define("USER_PASSWORD_USERNAMEC", "");
 
 	function checkSignature($signature, $expectedSignature) {
 		return hash_equals($signature, $expectedSignature);

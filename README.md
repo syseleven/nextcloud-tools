@@ -230,9 +230,7 @@ The custom definitions define how the `strip-signature.php` script works interna
 
 ### Execution
 
-The `strip-signature.php` script only supports to inject one individual file at a time. In order to do this the script has to be called with the name of the file that shall be injected. The file has to be referenced with its absolute path or with its path relative to the Nextcloud `datadirectory` folder.
-
-Additionally, the old known content has to be provided as a hexadecimally encoded value as well as the new target content which also has to be provided as a hexadecimally encoded value. Both values must have the same length and their payload must not exceed 16 bytes.
+The `strip-signature.php` script only supports to strip one individual file at a time. In order to do this the script has to be called with the name of the file that shall be stripped. The file has to be referenced with its absolute path or with its path relative to the Nextcloud `datadirectory` folder.
 
 The script outputs the result to STDOUT so it is advised to pipe the output into a file.
 
