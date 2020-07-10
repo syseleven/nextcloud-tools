@@ -350,6 +350,10 @@
 		$result = false;
 
 		if (openssl_open($filekey, $secretkey, $sharekey, $privatekey)) {
+			// try to set file times later on
+			$fileatime = fileatime($filename);
+			$filemtime = filemtime($filename);
+
 			$sourcefile = fopen($filename, "r");
 			$targetfile = fopen($target,   "w");
 			try {
@@ -405,6 +409,16 @@
 			} finally {
 				fclose($sourcefile);
 				fclose($targetfile);
+			}
+
+			// try to set file times
+			if ($result && (false !== $filemtime)) {
+				// fix access time if necessary
+				if (false === $fileatime) {
+					$fileatime = time();
+				}
+
+				touch($target, $filemtime, $fileatime);
 			}
 		}
 
