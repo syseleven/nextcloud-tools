@@ -2,15 +2,56 @@
 
 The **nextcloud-tools** have been developed by [SysEleven](https://syseleven.de) to debug the encryption and signature methods executed by the default encryption module of Nextcloud. The provided scripts may be helpful for other Nextcloud users and developers to debug problems or restore files.
 
-## check-signature.php
+## Rescue Tooling
+
+Rescue tooling is located in the `./rescue/` subfolder.
+
+### decrypt-all-files.php
+
+The `decrypt-all-files.php` script contains a re-implementation of Nextcloud's file decryption process. It decrypts all files in the Nextcloud data directory and stores the decrypted files in a target directory. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
+
+#### Configuration
+
+##### Nextcloud Definitions
+
+The Nextcloud definitions are values that you have to copy from the Nextcloud configuration file (`"config/config.php"`). The names of the values are equal to the ones found in the Nextcloud configuration file.
+
+* `DATADIRECTORY` - defines the location of the data directory of your Nextcloud instance, if you copied or moved your data directory then you have to set this value accordingly, this directory has to exist and contain the typical file structure of Nextcloud
+* `INSTANCEID` - defines the random instance ID of your Nextcloud instance, this is a value from the Nextcloud configuration file, there does not seem to be another way to retrieve this value
+* `SECRET` - defines the random secret of your Nextcloud instance, this is a value from the Nextcloud configuration file, there does not seem to be another way to retrieve this value
+
+##### Custom Definitions
+
+The custom definitions define how the `decrypt-file.php` script works internally. These are the supported configuration values:
+
+* `RECOVERY_PASSWORD` - defines the password of the recovery key when the recovery key support is activated through `KEYTYPE`.
+* `USER_PASSWORD_*` - defines the passwords for the user keys, you have to set these values if you disabled the master key encryption of your Nextcloud instance, do not set these values if you did not disable the master key encryption your Nextcloud instance, each value represents a (username, password) pair and you can set as many pairs as necessary, the username has to be written in uppercase characters and be prepended with "USER_PASSWORD\_", **Example:** if the username was _"beispiel"_ and the password of that user was _"example"_ then the value has to be set as: `define("USER_PASSWORD_BEISPIEL", "example");`
+
+#### Execution
+
+To execute the script you have to call it in the following way:
+
+```
+php ./rescue/decrypt-all-files.php <targetdir>
+```
+
+* `<targetdir>` - defines the target directory where the decrypted files get stored, the target directory has to already exist and it has to be empty, make sure that there is enough space to store all files decrypted files in the target directory
+
+The execution may take a lot of time, depending on the power of your computer and on the number and size of your files. Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you can achieve this by starting the script within a _screen_ session. Also, the script currently does not support external storages. If you need this specific feature then please contact the author.
+
+## Debug Tooling
+
+Debug tooling is located in the `./rescue/` subfolder.
+
+### check-signature.php
 
 The `check-signature.php` script contains a re-implementation of Nextcloud's signature checking process. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
 
-### Preparation
+#### Preparation
 
 As the `check-signature.php` script does not implement database accesses, the necessary Nextcloud database tables have to be provided in the form of well-structured CSV files. These files can be exported directly from the database.
 
-#### MariaDB/MySQL
+##### MariaDB/MySQL
 
 To export the necessary CSV files from MariaDB/MySQL you have to connect to the correct database: `sudo mysql -D <dbname>`
 
@@ -32,7 +73,7 @@ sudo mv /var/lib/mysql-files/filecache.csv /tmp/
 sudo mv /var/lib/mysql-files/storages.csv /tmp/
 ```
 
-#### PostgreSQL
+##### PostgreSQL
 
 To export the necessary CSV files from PostgreSQL you have to connect to the correct database: `sudo -u <dbuser> psql -d <dbname>`
 
@@ -46,15 +87,15 @@ Then you can execute the export:
 \q
 ```
 
-### Configuration
+#### Configuration
 
 The `check-signature.php` script needs some configuration values to be set.
 
-#### Nextcloud Definitions
+##### Nextcloud Definitions
 
 The Nextcloud definitions are values that you have to copy from the Nextcloud configuration file (`"config/config.php"`). The names of the values are equal to the ones found in the Nextcloud configuration file.
 
-#### Custom Definitions
+##### Custom Definitions
 
 The custom definitions define how the `check-signature.php` script works internally. These are the supported configuration values:
 
@@ -69,35 +110,35 @@ The custom definitions define how the `check-signature.php` script works interna
 * `USER_NAME` - defines the name of the user key when the user key support is activated through `KEYTYPE`. 
 * `USER_PASSWORD` - defines the password of the user key when the user key support is activated through `KEYTYPE` or when the signature of the user private key of `USER_NAME` shall be checked.
 
-#### User Password Definitions
+##### User Password Definitions
 
 The `check-signature.php` script supports to check the signature of user key files. In order to do this the scripts needs to have acces to the password of the user key. To provide the passwords for different users the corresponding `USER_PASSWORD_USERNAME` value can be set whereby `USERNAME` has to be replaced with the actual username.
 
-### Execution
+#### Execution
 
 The `check-signature.php` script supports two different ways of execution.
 
-#### Check individual files
+##### Check individual files
 
 The `check-signature.php` script supports to check individual files. In order to do this the script has to be called with the names of the files that shall be checked. The files have to be referenced with their absolute path or with their path relative to the Nextcloud `datadirectory` folder.
 
-#### Check the whole data directory
+##### Check the whole data directory
 
 The `check-signature.php` scripts supports to check the whole Nextcloud data directory. In order to do this the script has to be called without additional parameters.
 
-## decrypt-file.php
+### decrypt-file.php
 
 The `decrypt-file.php` script contains a re-implementation of Nextcloud's file decryption process. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
 
-### Configuration
+#### Configuration
 
 The `decrypt-file.php` script needs some configuration values to be set.
 
-#### Nextcloud Definitions
+##### Nextcloud Definitions
 
 The Nextcloud definitions are values that you have to copy from the Nextcloud configuration file (`"config/config.php"`). The names of the values are equal to the ones found in the Nextcloud configuration file.
 
-#### Custom Definitions
+##### Custom Definitions
 
 The custom definitions define how the `decrypt-file.php` script works internally. These are the supported configuration values:
 
@@ -107,24 +148,24 @@ The custom definitions define how the `decrypt-file.php` script works internally
 * `USER_NAME` - defines the name of the user key when the user key support is activated through `KEYTYPE`. 
 * `USER_PASSWORD` - defines the password of the user key when the user key support is activated through `KEYTYPE`.
 
-### Execution
+#### Execution
 
 The `decrypt-file.php` script only supports to decrypt one individual file at a time. In order to do this the script has to be called with the name of the file that shall be decrypted. The file has to be referenced with its absolute path or with its path relative to the Nextcloud `datadirectory` folder.
 
 The script outputs the decrypted file content to STDOUT so it is advised to pipe the output into a file.
 
-## fix-duplicate.php
+### fix-duplicate.php
 
 The `fix-signature.php` script checks the `oc_filecache` table for file duplicates and creates SQL statements to delete the duplicates. The problem this scripts tries to solve is that Nextcloud at some point in time added files to the `oc_filecache` table with two different entry structures:
 
 1. `storage = 1` and `path = $username/$path`
 2. `storage != 1` and `path = $path`
 
-### Preparation
+#### Preparation
 
 As the `fix-duplicate.php` script does not implement database accesses, the necessary Nextcloud database tables have to be provided in the form of well-structured CSV files. These files can be exported directly from the database.
 
-#### MariaDB/MySQL
+##### MariaDB/MySQL
 
 To export the necessary CSV files from MariaDB/MySQL you have to connect to the correct database: `sudo mysql -D <dbname>`
 
@@ -146,7 +187,7 @@ sudo mv /var/lib/mysql-files/filecache.csv /tmp/
 sudo mv /var/lib/mysql-files/storages.csv /tmp/
 ```
 
-#### PostgreSQL
+##### PostgreSQL
 
 To export the necessary CSV files from PostgreSQL you have to connect to the correct database: `sudo -u <dbuser> psql -d <dbname>`
 
@@ -160,15 +201,15 @@ Then you can execute the export:
 \q
 ```
 
-### Configuration
+#### Configuration
 
 The `fix-duplicate.php` script needs some configuration values to be set.
 
-#### Nextcloud Definitions
+##### Nextcloud Definitions
 
 The Nextcloud definitions are values that you have to copy from the Nextcloud configuration file (`"config/config.php"`). The names of the values are equal to the ones found in the Nextcloud configuration file.
 
-#### Custom Definitions
+##### Custom Definitions
 
 The custom definitions define how the `fix-duplicate.php` script works internally. These are the supported configuration values:
 
@@ -176,32 +217,32 @@ The custom definitions define how the `fix-duplicate.php` script works internall
 * `FILECACHE` - defines the path of the CSV export of the `oc_filecache` table.
 * `STORAGES` - defines the path of the CSV export of the `oc_storages` table.
 
-### Execution
+#### Execution
 
 The `fix-duplicate.php` script does not support any parameters.
 
 The script outputs the result to STDOUT so it is advised to pipe the output into a file.
 
-## inject-content.php
+### inject-content.php
 
 The `inject-content.php` script takes a filename, a known plaintext and a target plaintext and manipulates a server-side encrypted file so that it contains the target plaintext instead of the known plaintext.
 
-### Configuration
+#### Configuration
 
 The `inject-content.php` script needs some configuration values to be set.
 
-#### Nextcloud Definitions
+##### Nextcloud Definitions
 
 The Nextcloud definitions are values that you have to copy from the Nextcloud configuration file (`"config/config.php"`). The names of the values are equal to the ones found in the Nextcloud configuration file.
 
-#### Custom Definitions
+##### Custom Definitions
 
 The custom definitions define how the `inject-content.php` script works internally. These are the supported configuration values:
 
 * `DEBUGLEVEL` - defines how much output is generated by the script. `DEBUG_DEFAULT` and `DEBUG_INFO` only output positive and negative results. `DEBUG_DEBUG` outputs positive and negative results as well as details about the internal state of the script. (*Use `DEBUG_DEBUG` with caution as it can produce a lot of output.*)
 * `MAXFILESIZE` - defines the maximum size of handled files in bytes. Set the memory limit accordingly: `php -d memory_limit=<MAXFILESIZE + overhead> ./inject-content.php`
 
-### Execution
+#### Execution
 
 The `inject-content.php` script only supports to inject one individual file at a time. In order to do this the script has to be called with the name of the file that shall be injected. The file has to be referenced with its absolute path or with its path relative to the Nextcloud `datadirectory` folder.
 
@@ -209,31 +250,39 @@ Additionally, the old content has be provided as a hexadecimally encoded value a
 
 The script outputs the result to STDOUT so it is advised to pipe the output into a file.
 
-## strip-signature.php
+### strip-signature.php
 
 The `strip-signature.php` script takes a filename and manipulates a server-side encrypted file so that its content blocks do not contain message authentication codes anymore.
 
-### Configuration
+#### Configuration
 
 The `strip-signature.php` script needs some configuration values to be set.
 
-#### Nextcloud Definitions
+##### Nextcloud Definitions
 
 The Nextcloud definitions are values that you have to copy from the Nextcloud configuration file (`"config/config.php"`). The names of the values are equal to the ones found in the Nextcloud configuration file.
 
-#### Custom Definitions
+##### Custom Definitions
 
 The custom definitions define how the `strip-signature.php` script works internally. These are the supported configuration values:
 
 * `DEBUGLEVEL` - defines how much output is generated by the script. `DEBUG_DEFAULT` and `DEBUG_INFO` only output positive and negative results. `DEBUG_DEBUG` outputs positive and negative results as well as details about the internal state of the script. (*Use `DEBUG_DEBUG` with caution as it can produce a lot of output.*)
 * `MAXFILESIZE` - defines the maximum size of handled files in bytes. Set the memory limit accordingly: `php -d memory_limit=<MAXFILESIZE + overhead> ./strip-signature.php`
 
-### Execution
+#### Execution
 
 The `strip-signature.php` script only supports to strip one individual file at a time. In order to do this the script has to be called with the name of the file that shall be stripped. The file has to be referenced with its absolute path or with its path relative to the Nextcloud `datadirectory` folder.
 
 The script outputs the result to STDOUT so it is advised to pipe the output into a file.
 
-## server-side-encryption.md
+## Documentation
+
+Documentation is located in the `./documentation/` subfolder.
+
+### server-side-encryption.md
 
 The document `server-side-encryption.md` contains the collected knowledge of [SysEleven](https://syseleven.de) about the file types and key types as well as the key pair generation, file encryption and file decryption processes of Nextcloud. It has become part of the official [Nextcloud Administration Manual](https://docs.nextcloud.com/server/latest/admin_manual/configuration_files/encryption_details.html).
+
+### server-side-encryption.rst
+
+The document `server-side-encryption.rst` contains the collected knowledge of [SysEleven](https://syseleven.de) about the file types and key types as well as the key pair generation, file encryption and file decryption processes of Nextcloud. This file contains the same information as `server-side-encryption.md` but uses the document syntax of the Nextcloud documentation CMS. It has become part of the official [Nextcloud Administration Manual](https://docs.nextcloud.com/server/latest/admin_manual/configuration_files/encryption_details.html).

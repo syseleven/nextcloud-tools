@@ -10,6 +10,59 @@
 	# ======
 	#
 	# php ./decrypt-all-files.php <targetdir>
+	#
+	#
+	# description:
+	# ============
+	#
+	# This is script can save your precious files in cases where you encrypted them with the
+	# Nextcloud Server Side Encryption and still have access to the data directory and the
+	# Nextcloud configuration file ("config/config.php"). This script is able to decrypt locally
+	# stored files within the data directory. It supports master-key encrypted files, user-key
+	# encrypted files and can also use a rescue key (if enabled) and the public sharing key if
+	# files had been publicly shared.
+	#
+	#
+	# In order to use the script you have to configure the given values below:
+	#
+	# DATADIRECTORY     this is the location of the data directory of your Nextcloud instance,
+	#                   if you copied or moved your data directory then you have to set this value accordingly,
+	#                   this directory has to exist and contain the typical file structure of Nextcloud
+	#
+	# INSTANCEID        this is a value from the Nextcloud configuration file,
+	#                   there does not seem to be another way to retrieve this value
+	#
+	# SECRET            this is a value from the Nextcloud configuration file,
+	#                   there does not seem to be another way to retrieve this value
+	#
+	# RECOVERY_PASSWORD this is the password for the recovery key,
+	#                   you can set this value if you activated the recovery feature of your Nextcloud instance,
+	#                   leave this value empty if you did not acticate the recovery feature of your Nextcloud instance
+	#
+	# USER_PASSWORD_*   these are the passwords for the user keys,
+	#                   you have to set these values if you disabled the master key encryption of your Nextcloud instance,
+	#                   do not set these values if you did not disable the master key encryption your Nextcloud instance,
+	#                   each value represents a (username, password) pair and you can set as many pairs as necessary,
+	#                   the username has to be written in uppercase characters and be prepended with "USER_PASSWORD_",
+	#                   Example: if the username was "beispiel" and the password of that user was "example" then the value
+	#                            has to be set as: define("USER_PASSWORD_BEISPIEL", "example");
+	#
+	#
+	# execution:
+	# ==========
+	#
+	# To execute the script you have to call it in the following way:
+	#
+	# php ./decrypt-all-files.php <targetdir>
+	#
+	# <targetdir> this is the target directory where the decrypted files get stored, the target directory has to already exist
+	#             and it has to be empty, make sure that there is enough space to store all files decrypted files in the target
+	#             directory
+	#
+	# The execution may take a lot of time, depending on the power of your computer and on the number and size of your files.
+	# Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you
+	# can achieve this by starting the script within a screen session. Also, the script currently does not support external
+	# storages. If you need this specific feature then please contact the author.
 
 	// static definitions
 	define("BLOCKSIZE",    8192);
