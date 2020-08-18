@@ -41,7 +41,7 @@ The execution may take a lot of time, depending on the power of your computer an
 
 ## Debug Tooling
 
-Debug tooling is located in the `./rescue/` subfolder.
+Debug tooling is located in the `./debug/` subfolder.
 
 ### check-signature.php
 
