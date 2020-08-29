@@ -25,28 +25,36 @@
 	#
 	# In order to use the script you have to configure the given values below:
 	#
-	# DATADIRECTORY     this is the location of the data directory of your Nextcloud instance,
-	#                   if you copied or moved your data directory then you have to set this value accordingly,
-	#                   this directory has to exist and contain the typical file structure of Nextcloud
+	# DATADIRECTORY      this is the location of the data directory of your Nextcloud instance,
+	#                    if you copied or moved your data directory then you have to set this value accordingly,
+	#                    this directory has to exist and contain the typical file structure of Nextcloud
 	#
-	# INSTANCEID        this is a value from the Nextcloud configuration file,
-	#                   there does not seem to be another way to retrieve this value
+	# INSTANCEID         this is a value from the Nextcloud configuration file,
+	#                    there does not seem to be another way to retrieve this value
 	#
-	# SECRET            this is a value from the Nextcloud configuration file,
-	#                   there does not seem to be another way to retrieve this value
+	# SECRET             this is a value from the Nextcloud configuration file,
+	#                    there does not seem to be another way to retrieve this value
 	#
-	# RECOVERY_PASSWORD this is the password for the recovery key,
-	#                   you can set this value if you activated the recovery feature of your Nextcloud instance,
-	#                   leave this value empty if you did not acticate the recovery feature of your Nextcloud instance
+	# RECOVERY_PASSWORD  this is the password for the recovery key,
+	#                    you can set this value if you activated the recovery feature of your Nextcloud instance,
+	#                    leave this value empty if you did not acticate the recovery feature of your Nextcloud instance
 	#
-	# USER_PASSWORD_*   these are the passwords for the user keys,
-	#                   you have to set these values if you disabled the master key encryption of your Nextcloud instance,
-	#                   do not set these values if you did not disable the master key encryption your Nextcloud instance,
-	#                   each value represents a (username, password) pair and you can set as many pairs as necessary,
-	#                   the username has to be written in uppercase characters and be prepended with "USER_PASSWORD_",
-	#                   Example: if the username was "beispiel" and the password of that user was "example" then the value
-	#                            has to be set as: define("USER_PASSWORD_BEISPIEL", "example");
+	# USER_PASSWORD_*    these are the passwords for the user keys,
+	#                    you have to set these values if you disabled the master key encryption of your Nextcloud instance,
+	#                    do not set these values if you did not disable the master key encryption your Nextcloud instance,
+	#                    each value represents a (username, password) pair and you can set as many pairs as necessary,
+	#                    the username has to be written in uppercase characters and be prepended with "USER_PASSWORD_",
+	#                    Example: if the username was "beispiel" and the password of that user was "example" then the value
+	#                             has to be set as: define("USER_PASSWORD_BEISPIEL", "example");
 	#
+	# EXTERNAL_STORAGE_* these are the mount paths of external folders,
+	#                    you have to set these values if you used external storages within your Nextcloud instance,
+	#                    each value represents a (external storage, mount path) pair and you can set as many pairs as necessary,
+	#                    the external storage name has to be written as it is found in the "DATADIRECTORY/files_encryption/keys/files/"
+	#                    folder and be prepended with "EXTERNAL_STORAGE_",
+	#                    the external storage has to be mounted by yourself and the corresponding mount path has to be set,
+	#                    Example: if the external storage name was "sftp" and you mounted the corresponding SFTP folder as "/mnt/sshfs"
+	#                             then the value has to be set as: define("EXTERNAL_STORAGE_sftp", "/mnt/sshfs");
 	#
 	# execution:
 	# ==========
@@ -65,9 +73,10 @@
 	# storages. If you need this specific feature then please contact the author.
 
 	// static definitions
-	define("BLOCKSIZE",    8192);
-	define("HEADER_END",   "HEND");
-	define("HEADER_START", "HBEGIN");
+	define("BLOCKSIZE",        8192);
+	define("EXTERNAL_STORAGE", "EXTERNAL_STORAGE_");
+	define("HEADER_END",       "HEND");
+	define("HEADER_START",     "HBEGIN");
 
 	// nextcloud definitions - you can get these values from config/config.php
 	define("DATADIRECTORY", "");
@@ -83,6 +92,13 @@
 	// define("USER_PASSWORD_USERNAMEA", "");
 	// define("USER_PASSWORD_USERNAMEB", "");
 	// define("USER_PASSWORD_USERNAMEC", "");
+
+	// external storage definitions
+	// replace "STORAGEA", "STORAGEB", "STORAGEB" with the actual external storage names
+	// you can add or remove entries as necessary
+	// define("EXTERNAL_STORAGE_STORAGEA", "");
+	// define("EXTERNAL_STORAGE_STORAGEB", "");
+	// define("EXTERNAL_STORAGE_STORAGEC", "");
 
 	function concatPath($directory, $file) {
 		if (0 < strlen($directory)) {
@@ -100,26 +116,61 @@
 		return $directory.$file;
 	}
 
+	function decryptJson($file) {
+		$result = false;
+
+		$parts     = explode("|", $file);
+		$partCount = count($parts);
+
+		if (($partCount >= 3) && ($partCount <= 4)) {
+			$ciphertext = hex2bin($parts[0]);
+			$iv         = $parts[1];
+
+			if ($partCount === 4) {
+				$version = $parts[3];
+				if ($version === "2") {
+					$iv = hex2bin($iv);
+				}
+			}
+
+			$key  = hash_pbkdf2("sha1", SECRET, "phpseclib", 1000, 16, true);
+			$json = openssl_decrypt($ciphertext, "aes-128-cbc", $key, OPENSSL_RAW_DATA, $iv);
+
+			if (false !== $json) {
+				$json = json_decode($json, true);
+				if (is_array($json)) {
+					if (array_key_exists("key", $json)) {
+						$result = base64_decode($json["key"]);
+					}
+				}
+			}
+		}
+
+		return $result;
+	}
+
 	function decryptPrivateKey($file, $password, $keyid) {
 		$result = false;
 
 		$header = parseHeader($file);
 		$meta   = splitMetaData($file);
 
-		if (array_key_exists("cipher", $header) &&
-		    array_key_exists("encrypted", $meta) &&
-		    array_key_exists("iv", $meta)) {
-			if (array_key_exists("keyFormat", $header) && ("hash" === $header["keyFormat"])) {
-				$password = generatePasswordHash($password, $header["cipher"], $keyid);
-			}
+		if (is_array($header) && is_array($meta)) {
+			if (array_key_exists("cipher", $header) &&
+			    array_key_exists("encrypted", $meta) &&
+			    array_key_exists("iv", $meta)) {
+				if (array_key_exists("keyFormat", $header) && ("hash" === $header["keyFormat"])) {
+					$password = generatePasswordHash($password, $header["cipher"], $keyid);
+				}
 
-			$key = openssl_decrypt(stripHeader($meta["encrypted"]), $header["cipher"], $password, false, $meta["iv"]);
-			if (false !== $key) {
-				$res = openssl_pkey_get_private($key);
-				if (is_resource($res)) {
-					$sslInfo = openssl_pkey_get_details($res);
-					if (array_key_exists("key", $sslInfo)) {
-						$result = $key;
+				$key = openssl_decrypt(stripHeader($meta["encrypted"]), $header["cipher"], $password, false, $meta["iv"]);
+				if (false !== $key) {
+					$res = openssl_pkey_get_private($key);
+					if (is_resource($res)) {
+						$sslInfo = openssl_pkey_get_details($res);
+						if (array_key_exists("key", $sslInfo)) {
+							$result = $key;
+						}
 					}
 				}
 			}
@@ -157,7 +208,7 @@
 				}
 
 				if (null !== $keyname) {
-					$file = file_get_contents($filename);
+					$file = file_get_contents_try_json($filename);
 					if (false !== $file) {
 						$key = decryptPrivateKey($file, $password, $keyid);
 						if (false !== $key) {
@@ -184,7 +235,7 @@
 					}
 
 					if (is_file($filename) && (null !== $password)) {
-						$file = file_get_contents($filename);
+						$file = file_get_contents_try_json($filename);
 						if (false !== $file) {
 							$key = decryptPrivateKey($file, $password, $keyname);
 							if (false !== $key) {
@@ -193,6 +244,19 @@
 						}
 					}
 				}
+			}
+		}
+
+		return $result;
+	}
+
+	function file_get_contents_try_json($filename) {
+		$result = file_get_contents($filename);
+
+		if (false !== $result) {
+			$tmp = decryptJson($result);
+			if (false !== $tmp) {
+				$result = $tmp;
 			}
 		}
 
@@ -334,12 +398,15 @@
 		$result = false;
 
 		$meta = splitMetaData($block);
-		if (array_key_exists("cipher", $header) &&
-		    array_key_exists("encrypted", $meta) &&
-		    array_key_exists("iv", $meta)) {
-			$output = openssl_decrypt($meta["encrypted"], $header["cipher"], $secretkey, false, $meta["iv"]);
-			if (false !== $output) {
-				$result = $output;
+
+		if (is_array($header) && is_array($meta)) {
+			if (array_key_exists("cipher", $header) &&
+			    array_key_exists("encrypted", $meta) &&
+			    array_key_exists("iv", $meta)) {
+				$output = openssl_decrypt($meta["encrypted"], $header["cipher"], $secretkey, false, $meta["iv"]);
+				if (false !== $output) {
+					$result = $output;
+				}
 			}
 		}
 
@@ -430,87 +497,116 @@
 
 		$privatekeys = decryptPrivateKeys();
 		if (0 < count($privatekeys)) {
-			$filelist = recursiveScandir(DATADIRECTORY, true);
-			foreach ($filelist as $filename) {
-				$success = false;
+			// collect all file sources
+			$sources = [null => recursiveScandir(DATADIRECTORY, true)];
 
-				$datafilename = null;
-				$istrashbin   = false;
-				$username     = null;
-
-				if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-				                     "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
-					$datafilename = $matches["datafilename"];
-					$istrashbin   = false;
-					$username     = $matches["username"];
-				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-				                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
-					$datafilename = $matches["datafilename"];
-					$istrashbin   = true;
-					$username     = $matches["username"];
-				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-				                           "(?<username>[^/]+)/files_versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
-					$datafilename = $matches["datafilename"];
-					$istrashbin   = false;
-					$username     = $matches["username"];
-				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-				                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
-					$datafilename = $matches["datafilename"].$matches["deletetime"];
-					$istrashbin   = true;
-					$username     = $matches["username"];
-				}
-
-				if (null !== $datafilename) {
-					$filekey  = null;
-					$keyname  = null;
-					$sharekey = null;
-
-					if ($istrashbin) {
-						$filekey  = concatPath(DATADIRECTORY,
-						                       $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-
-						foreach ($privatekeys as $key => $value) {
-							$tmp = concatPath(DATADIRECTORY,
-							                  $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-							if (is_file($tmp)) {
-								$keyname  = $key;
-								$sharekey = $tmp;
-								break;
-							}
-						}
+			foreach (array_keys(get_defined_constants(true)["user"]) as $constant) {
+				if (0 === strpos($constant, EXTERNAL_STORAGE)) {
+					if (is_dir(constant($constant))) {
+						$sources[substr($constant, strlen(EXTERNAL_STORAGE))] = recursiveScandir(constant($constant), true);
 					} else {
-						$filekey  = concatPath(DATADIRECTORY,
-						                       $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-
-						foreach ($privatekeys as $key => $value) {
-							$tmp = concatPath(DATADIRECTORY,
-							                  $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-							if (is_file($tmp)) {
-								$keyname  = $key;
-								$sharekey = $tmp;
-								break;
-							}
-						}
-					}
-
-					if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
-						$filekey  = file_get_contents($filekey);
-						$sharekey = file_get_contents($sharekey);
-						$target   = concatPath($targetdir, substr($filename, strlen(DATADIRECTORY)));
-
-						// try to recursively create the target subfolder
-						if (!is_dir(dirname($target))) {
-							mkdir(dirname($target), 0777, true);
-						}
-
-						$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
-					}
-
-					if ($success) {
-						print($filename."\n");
-					} else {
-						print("ERROR: ".substr($filename, strlen(DATADIRECTORY))." FAILED\n");
+						print("ERROR: EXTERNAL STORAGE ".constant($constant)." DOES NOT EXIST\n");
 						$result = 5;
+					}
+				}
+			}
+
+			foreach ($sources as $source => $filelist) {
+				foreach ($filelist as $filename) {
+					$success = false;
+
+					$datafilename = null;
+					$istrashbin   = false;
+					$username     = null;
+
+					// do we handle the data directory or an external storage
+					if (0 === strlen($source)) {
+						if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+						                     "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
+							$datafilename = $matches["datafilename"];
+							$istrashbin   = false;
+							$username     = $matches["username"];
+						} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+						                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
+							$datafilename = $matches["datafilename"];
+							$istrashbin   = true;
+							$username     = $matches["username"];
+						} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+						                           "(?<username>[^/]+)/files_versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
+							$datafilename = $matches["datafilename"];
+							$istrashbin   = false;
+							$username     = $matches["username"];
+						} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+						                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
+							$datafilename = $matches["datafilename"].$matches["deletetime"];
+							$istrashbin   = true;
+							$username     = $matches["username"];
+						}
+					} else {
+						$datafilename = concatPath($source, substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+						$istrashbin   = false;
+						$username     = "";
+					}
+
+					if (null !== $datafilename) {
+						$filekey  = null;
+						$keyname  = null;
+						$sharekey = null;
+
+						if ($istrashbin) {
+							$filekey  = concatPath(DATADIRECTORY,
+							                       $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+
+							foreach ($privatekeys as $key => $value) {
+								$tmp = concatPath(DATADIRECTORY,
+								                  $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+								if (is_file($tmp)) {
+									$keyname  = $key;
+									$sharekey = $tmp;
+									break;
+								}
+							}
+						} else {
+							$filekey  = concatPath(DATADIRECTORY,
+							                       $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+
+							foreach ($privatekeys as $key => $value) {
+								$tmp = concatPath(DATADIRECTORY,
+								                  $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+								if (is_file($tmp)) {
+									$keyname  = $key;
+									$sharekey = $tmp;
+									break;
+								}
+							}
+						}
+
+						if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
+							$filekey  = file_get_contents_try_json($filekey);
+							$sharekey = file_get_contents_try_json($sharekey);
+
+							// do we handle the data directory or an external storage
+							if (0 === strlen($source)) {  
+								$target = concatPath($targetdir, substr($filename, strlen(DATADIRECTORY)));
+							} else {
+								$target = concatPath(concatPath($targetdir, EXTERNAL_STORAGE.$source),
+								                     substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+							}
+
+							// try to recursively create the target subfolder
+							if (!is_dir(dirname($target))) {
+								mkdir(dirname($target), 0777, true);
+							}
+
+							$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
+						}
+
+						if ($success) {
+							print($filename."\n");
+						} else {
+							print("ERROR: ".$filename." FAILED\n");
+							$result = 6;
+						}
 					}
 				}
 			}
