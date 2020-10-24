@@ -25,21 +25,21 @@
 	#
 	# In order to use the script you have to configure the given values below:
 	#
-	# DATADIRECTORY      this is the location of the data directory of your Nextcloud instance,
+	# DATADIRECTORY      (REQUIRED) this is the location of the data directory of your Nextcloud instance,
 	#                    if you copied or moved your data directory then you have to set this value accordingly,
 	#                    this directory has to exist and contain the typical file structure of Nextcloud
 	#
-	# INSTANCEID         this is a value from the Nextcloud configuration file,
+	# INSTANCEID         (REQUIRED) this is a value from the Nextcloud configuration file,
 	#                    there does not seem to be another way to retrieve this value
 	#
-	# SECRET             this is a value from the Nextcloud configuration file,
+	# SECRET             (REQUIRED) this is a value from the Nextcloud configuration file,
 	#                    there does not seem to be another way to retrieve this value
 	#
-	# RECOVERY_PASSWORD  this is the password for the recovery key,
+	# RECOVERY_PASSWORD  (OPTIONAL) this is the password for the recovery key,
 	#                    you can set this value if you activated the recovery feature of your Nextcloud instance,
 	#                    leave this value empty if you did not acticate the recovery feature of your Nextcloud instance
 	#
-	# USER_PASSWORD_*    these are the passwords for the user keys,
+	# USER_PASSWORD_*    (OPTIONAL) these are the passwords for the user keys,
 	#                    you have to set these values if you disabled the master key encryption of your Nextcloud instance,
 	#                    do not set these values if you did not disable the master key encryption your Nextcloud instance,
 	#                    each value represents a (username, password) pair and you can set as many pairs as necessary,
@@ -47,7 +47,7 @@
 	#                    Example: if the username was "beispiel" and the password of that user was "example" then the value
 	#                             has to be set as: define("USER_PASSWORD_BEISPIEL", "example");
 	#
-	# EXTERNAL_STORAGE_* these are the mount paths of external folders,
+	# EXTERNAL_STORAGE_* (OPTIONAL) these are the mount paths of external folders,
 	#                    you have to set these values if you used external storages within your Nextcloud instance,
 	#                    each value represents a (external storage, mount path) pair and you can set as many pairs as necessary,
 	#                    the external storage name has to be written as it is found in the "DATADIRECTORY/files_encryption/keys/files/"
@@ -63,9 +63,9 @@
 	#
 	# php ./decrypt-all-files.php <targetdir>
 	#
-	# <targetdir> this is the target directory where the decrypted files get stored, the target directory has to already exist
-	#             and it has to be empty, make sure that there is enough space to store all files decrypted files in the target
-	#             directory
+	# <targetdir> (REQUIRED) this is the target directory where the decrypted files get stored, the target directory has to
+	#             already exist and it has to be empty, make sure that there is enough space to store all files decrypted
+	#             files in the target directory
 	#
 	# The execution may take a lot of time, depending on the power of your computer and on the number and size of your files.
 	# Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you
@@ -94,7 +94,7 @@
 	// define("USER_PASSWORD_USERNAMEC", "");
 
 	// external storage definitions
-	// replace "STORAGEA", "STORAGEB", "STORAGEB" with the actual external storage names
+	// replace "STORAGEA", "STORAGEB", "STORAGEC" with the actual external storage names
 	// you can add or remove entries as necessary
 	// define("EXTERNAL_STORAGE_STORAGEA", "");
 	// define("EXTERNAL_STORAGE_STORAGEB", "");
@@ -648,3 +648,4 @@
 	}
 
 	exit(main($argv));
+
