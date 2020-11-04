@@ -426,8 +426,6 @@
 
 		$sourcefile = fopen($filename, "r");
 		try {
-			$result = true;
-
 			$buffer = "";
 			$tmp    = "";
 			do {
