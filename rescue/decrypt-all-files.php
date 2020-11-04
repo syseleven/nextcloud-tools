@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# decrypt-all-files.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./decrypt-all-files.php <targetdir>
+	# ./decrypt-all-files.php <targetdir>
 	#
 	#
 	# description:
@@ -413,6 +414,53 @@
 		return $result;
 	}
 
+	function copyUnencryptedFile($filename, $target) {
+		$result = false;
+
+		// try to set file times later on
+		$fileatime = fileatime($filename);
+		$filemtime = filemtime($filename);
+
+		// we will not try to copy encrypted files
+		$isplain = false;
+
+		$sourcefile = fopen($filename, "r");
+		try {
+			$result = true;
+
+			$buffer = "";
+			$tmp    = "";
+			do {
+				$tmp = fread($sourcefile, BLOCKSIZE);
+				if (false !== $tmp) {
+					$buffer .= $tmp;
+				}
+			} while ((BLOCKSIZE > strlen($buffer)) && (!feof($sourcefile)));
+
+			// check if the source file does not start with a header
+			$header  = parseHeader(substr($buffer, 0, BLOCKSIZE));
+			$isplain = (0 === count($header));
+		} finally {
+			fclose($sourcefile);
+		}
+
+		if ($isplain) {
+			$result = copy($filename, $target);
+
+			// try to set file times
+			if ($result && (false !== $filemtime)) {
+				// fix access time if necessary
+				if (false === $fileatime) {
+					$fileatime = time();
+				}
+
+				touch($target, $filemtime, $fileatime);
+			}
+		}
+
+		return $result;
+	}
+
 	function decryptFile($filename, $filekey, $sharekey, $privatekey, $target) {
 		$result = false;
 
@@ -513,77 +561,74 @@
 
 			foreach ($sources as $source => $filelist) {
 				foreach ($filelist as $filename) {
-					$success = false;
+					if (is_file($filename)) {
+						$success = false;
 
-					$datafilename = null;
-					$istrashbin   = false;
-					$username     = null;
-
-					// do we handle the data directory or an external storage
-					if (0 === strlen($source)) {
-						if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-						                     "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
-							$datafilename = $matches["datafilename"];
-							$istrashbin   = false;
-							$username     = $matches["username"];
-						} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-						                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
-							$datafilename = $matches["datafilename"];
-							$istrashbin   = true;
-							$username     = $matches["username"];
-						} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-						                           "(?<username>[^/]+)/files_versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
-							$datafilename = $matches["datafilename"];
-							$istrashbin   = false;
-							$username     = $matches["username"];
-						} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-						                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
-							$datafilename = $matches["datafilename"].$matches["deletetime"];
-							$istrashbin   = true;
-							$username     = $matches["username"];
-						}
-					} else {
-						$datafilename = concatPath($source, substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+						$datafilename = null;
 						$istrashbin   = false;
-						$username     = "";
-					}
+						$username     = null;
 
-					if (null !== $datafilename) {
-						$filekey  = null;
-						$keyname  = null;
-						$sharekey = null;
-
-						if ($istrashbin) {
-							$filekey  = concatPath(DATADIRECTORY,
-							                       $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-
-							foreach ($privatekeys as $key => $value) {
-								$tmp = concatPath(DATADIRECTORY,
-								                  $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-								if (is_file($tmp)) {
-									$keyname  = $key;
-									$sharekey = $tmp;
-									break;
-								}
+						// do we handle the data directory or an external storage
+						if (0 === strlen($source)) {
+							if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+							                     "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
+								$datafilename = $matches["datafilename"];
+								$istrashbin   = false;
+								$username     = $matches["username"];
+							} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+							                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
+								$datafilename = $matches["datafilename"];
+								$istrashbin   = true;
+								$username     = $matches["username"];
+							} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+							                           "(?<username>[^/]+)/files_versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
+								$datafilename = $matches["datafilename"];
+								$istrashbin   = false;
+								$username     = $matches["username"];
+							} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+							                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
+								$datafilename = $matches["datafilename"].$matches["deletetime"];
+								$istrashbin   = true;
+								$username     = $matches["username"];
 							}
 						} else {
-							$filekey  = concatPath(DATADIRECTORY,
-							                       $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-
-							foreach ($privatekeys as $key => $value) {
-								$tmp = concatPath(DATADIRECTORY,
-								                  $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-								if (is_file($tmp)) {
-									$keyname  = $key;
-									$sharekey = $tmp;
-									break;
-								}
-							}
+							$datafilename = concatPath($source, substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+							$istrashbin   = false;
+							$username     = "";
 						}
 
-						if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
-							$filekey  = file_get_contents_try_json($filekey);
-							$sharekey = file_get_contents_try_json($sharekey);
+						if (null !== $datafilename) {
+							$filekey  = null;
+							$keyname  = null;
+							$sharekey = null;
+
+							if ($istrashbin) {
+								$filekey  = concatPath(DATADIRECTORY,
+								                       $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+
+								foreach ($privatekeys as $key => $value) {
+									$tmp = concatPath(DATADIRECTORY,
+									                  $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+									if (is_file($tmp)) {
+										$keyname  = $key;
+										$sharekey = $tmp;
+										break;
+									}
+								}
+							} else {
+								$filekey  = concatPath(DATADIRECTORY,
+								                       $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+
+								foreach ($privatekeys as $key => $value) {
+									$tmp = concatPath(DATADIRECTORY,
+									                  $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+									if (is_file($tmp)) {
+										$keyname  = $key;
+										$sharekey = $tmp;
+										break;
+									}
+								}
+							}
 
 							// do we handle the data directory or an external storage
 							if (0 === strlen($source)) {  
@@ -598,14 +643,21 @@
 								mkdir(dirname($target), 0777, true);
 							}
 
-							$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
-						}
+							if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
+								$filekey  = file_get_contents_try_json($filekey);
+								$sharekey = file_get_contents_try_json($sharekey);
 
-						if ($success) {
-							print($filename."\n");
-						} else {
-							print("ERROR: ".$filename." FAILED\n");
-							$result = 6;
+								$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
+							} else {
+								$success = copyUnencryptedFile($filename, $target);
+							}
+
+							if ($success) {
+								print($filename."\n");
+							} else {
+								print("ERROR: ".$filename." FAILED\n");
+								$result = 6;
+							}
 						}
 					}
 				}

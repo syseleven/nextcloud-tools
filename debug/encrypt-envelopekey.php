@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# encrypt-envelopekey.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./encrypt-envelopekey.php <envelopekey> <publickey filename>
+	# ./encrypt-envelopekey.php <envelopekey> <publickey filename>
 	#
 	# <envelopekey> has to be hexadecimally encoded and the payload has to be 16 bytes long,
 	# can be created with `openssl rand -hex 16`

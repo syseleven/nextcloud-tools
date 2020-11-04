@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# fix-duplicate.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./fix-duplicate.php
+	# ./fix-duplicate.php
 	#
 	#
 	# preparation of PostgreSQL:

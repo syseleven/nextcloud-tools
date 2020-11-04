@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# encrypt-filekey.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./encrypt-filekey.php <filekey> <envelopekey>
+	# ./encrypt-filekey.php <filekey> <envelopekey>
 	#
 	# <filekey> has to be hexadecimally encoded and the payload has to be 32 bytes long,
 	# can be created with `openssl rand -hex 32`

@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# strip-signature.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./strip-signature.php <filename>
+	# ./strip-signature.php <filename>
 
 	// static definitions
 	define("BLOCKSIZE",     8192);

@@ -35,7 +35,7 @@ The custom definitions define how the `decrypt-all-files.php` script works inter
 To execute the script you have to call it in the following way:
 
 ```
-php ./rescue/decrypt-all-files.php <targetdir>
+./rescue/decrypt-all-files.php <targetdir>
 ```
 
 * `<targetdir>` - defines the target directory where the decrypted files get stored, the target directory has to already exist and it has to be empty, make sure that there is enough space to store all files decrypted files in the target directory

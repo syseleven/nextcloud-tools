@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# calculate-filesize.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./calculate-filesize.php <filename>
+	# ./calculate-filesize.php <filename>
 
 	// static definitions
 	define("BLOCKSIZE",     8192);

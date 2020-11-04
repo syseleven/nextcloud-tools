@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# decrypt-file.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./decrypt-file.php <filename>
+	# ./decrypt-file.php <filename>
 
 	// static definitions
 	define("BLOCKSIZE",     8192);

@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# inject-content.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./inject-content.php <filename> <old content> <new content>
+	# ./inject-content.php <filename> <old content> <new content>
 	#
 	# <old content> has to be hexadecimally encoded and the payload has to be max. 16 bytes long
 	#

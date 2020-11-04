@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 	# check-signature.php
@@ -9,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# php ./check-signature.php [<filename>*]
+	# ./check-signature.php [<filename>*]
 	#
 	#
 	# preparation of PostgreSQL:
