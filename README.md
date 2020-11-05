@@ -38,7 +38,7 @@ To execute the script you have to call it in the following way:
 ./rescue/decrypt-all-files.php <targetdir>
 ```
 
-* `<targetdir>` - defines the target directory where the decrypted files get stored, the target directory has to already exist and it has to be empty, make sure that there is enough space to store all files decrypted files in the target directory
+* `<targetdir>` - defines the target directory where the decrypted files get stored, the target directory has to already exist and it has to be empty, make sure that there is enough space to store all decrypted files in the target directory
 
 The execution may take a lot of time, depending on the power of your computer and on the number and size of your files. Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you can achieve this by starting the script within a _screen_ session. Also, the script currently does **not** support the decryption of files in the trashbin that have been deleted from external storages. If you need this specific feature then please contact the author.
 
