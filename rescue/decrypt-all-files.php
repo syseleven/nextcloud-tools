@@ -62,7 +62,7 @@
 	#
 	# To execute the script you have to call it in the following way:
 	#
-	# php ./decrypt-all-files.php <targetdir>
+	# ./decrypt-all-files.php <targetdir>
 	#
 	# <targetdir> (REQUIRED) this is the target directory where the decrypted files get stored, the target directory has to
 	#             already exist and it has to be empty, make sure that there is enough space to store all files decrypted
