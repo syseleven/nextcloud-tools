@@ -642,8 +642,8 @@
 							}
 
 							if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
-								$filekey  = file_get_contents_try_json($filekey);
-								$sharekey = file_get_contents_try_json($sharekey);
+								$filekey  = file_get_contents($filekey);
+								$sharekey = file_get_contents($sharekey);
 
 								$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
 							} else {
