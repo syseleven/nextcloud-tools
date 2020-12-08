@@ -124,24 +124,32 @@
 		$partCount = count($parts);
 
 		if (($partCount >= 3) && ($partCount <= 4)) {
-			$ciphertext = hex2bin($parts[0]);
-			$iv         = $parts[1];
-
-			if ($partCount === 4) {
-				$version = $parts[3];
-				if ($version === "2") {
-					$iv = hex2bin($iv);
-				}
+			// we only proceed if all strings are hexadecimal
+			$proceed = true;
+			foreach ($parts as $part) {
+				$proceed = ($proceed && ctype_xdigit($part));
 			}
 
-			$key  = hash_pbkdf2("sha1", SECRET, "phpseclib", 1000, 16, true);
-			$json = openssl_decrypt($ciphertext, "aes-128-cbc", $key, OPENSSL_RAW_DATA, $iv);
+			if ($proceed) {
+				$ciphertext = hex2bin($parts[0]);
+				$iv         = $parts[1];
 
-			if (false !== $json) {
-				$json = json_decode($json, true);
-				if (is_array($json)) {
-					if (array_key_exists("key", $json)) {
-						$result = base64_decode($json["key"]);
+				if ($partCount === 4) {
+					$version = $parts[3];
+					if ($version === "2") {
+						$iv = hex2bin($iv);
+					}
+				}
+
+				$key  = hash_pbkdf2("sha1", SECRET, "phpseclib", 1000, 16, true);
+				$json = openssl_decrypt($ciphertext, "aes-128-cbc", $key, OPENSSL_RAW_DATA, $iv);
+
+				if (false !== $json) {
+					$json = json_decode($json, true);
+					if (is_array($json)) {
+						if (array_key_exists("key", $json)) {
+							$result = base64_decode($json["key"]);
+						}
 					}
 				}
 			}
@@ -642,8 +650,8 @@
 							}
 
 							if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
-								$filekey  = file_get_contents($filekey);
-								$sharekey = file_get_contents($sharekey);
+								$filekey  = file_get_contents_try_json($filekey);
+								$sharekey = file_get_contents_try_json($sharekey);
 
 								$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
 							} else {
