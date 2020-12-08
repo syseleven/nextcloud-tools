@@ -483,7 +483,7 @@
 					if (false !== $tmp) {
 						$buffer .= $tmp;
 
-						while (BLOCKSIZE < strlen($buffer)) {
+						while (BLOCKSIZE <= strlen($buffer)) {
 							$block  = substr($buffer, 0, BLOCKSIZE);
 							$buffer = substr($buffer, BLOCKSIZE);
 
