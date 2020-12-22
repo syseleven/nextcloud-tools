@@ -467,80 +467,78 @@
 		return $result;
 	}
 
-	function decryptFile($filename, $filekey, $sharekey, $privatekey, $target) {
+	function decryptFile($filename, $secretkey, $target) {
 		$result = false;
 
-		if (openssl_open($filekey, $secretkey, $sharekey, $privatekey)) {
-			// try to set file times later on
-			$fileatime = fileatime($filename);
-			$filemtime = filemtime($filename);
+		// try to set file times later on
+		$fileatime = fileatime($filename);
+		$filemtime = filemtime($filename);
 
-			$sourcefile = fopen($filename, "r");
-			$targetfile = fopen($target,   "w");
-			try {
-				$result = true;
+		$sourcefile = fopen($filename, "r");
+		$targetfile = fopen($target,   "w");
+		try {
+			$result = true;
 
-				$block  = "";
-				$buffer = "";
-				$first  = true;
-				$header = null;
-				$plain  = "";
-				$tmp    = "";
-				do {
-					$tmp = fread($sourcefile, BLOCKSIZE);
-					if (false !== $tmp) {
-						$buffer .= $tmp;
+			$block  = "";
+			$buffer = "";
+			$first  = true;
+			$header = null;
+			$plain  = "";
+			$tmp    = "";
+			do {
+				$tmp = fread($sourcefile, BLOCKSIZE);
+				if (false !== $tmp) {
+					$buffer .= $tmp;
 
-						while (BLOCKSIZE <= strlen($buffer)) {
-							$block  = substr($buffer, 0, BLOCKSIZE);
-							$buffer = substr($buffer, BLOCKSIZE);
+					while (BLOCKSIZE <= strlen($buffer)) {
+						$block  = substr($buffer, 0, BLOCKSIZE);
+						$buffer = substr($buffer, BLOCKSIZE);
 
-							// the first block contains the header
-							if ($first) {
-								$first  = false;
-								$header = parseHeader($block);
+						// the first block contains the header
+						if ($first) {
+							$first  = false;
+							$header = parseHeader($block);
+						} else {
+							$plain = decryptBlock($header, $block, $secretkey);
+							if (false !== $plain) {
+								// write fails when fewer bytes than string length are written
+								$result = $result && (strlen($plain) === fwrite($targetfile, $plain));
 							} else {
-								$plain = decryptBlock($header, $block, $secretkey);
-								if (false !== $plain) {
-									// write fails when fewer bytes than string length are written
-									$result = $result && (strlen($plain) === fwrite($targetfile, $plain));
-								} else {
-									// decryption failed
-									$result = false;
-								}
+								// decryption failed
+								$result = false;
 							}
 						}
 					}
-				} while (!feof($sourcefile));
-
-				// decrypt trailing blocks
-				while (0 < strlen($buffer)) {
-					$block  = substr($buffer, 0, BLOCKSIZE);
-					$buffer = substr($buffer, BLOCKSIZE);
-
-					$plain = decryptBlock($header, $block, $secretkey);
-					if (false !== $plain) {
-						// write fails when fewer bytes than string length are written
-						$result = $result && (strlen($plain) === fwrite($targetfile, $plain));
-					} else {
-						// decryption failed
-						$result = false;
-					}
 				}
-			} finally {
-				fclose($sourcefile);
-				fclose($targetfile);
+			} while (!feof($sourcefile));
+
+			// decrypt trailing blocks
+			while (0 < strlen($buffer)) {
+				$block  = substr($buffer, 0, BLOCKSIZE);
+				$buffer = substr($buffer, BLOCKSIZE);
+
+				$plain = decryptBlock($header, $block, $secretkey);
+				if (false !== $plain) {
+					// write fails when fewer bytes than string length are written
+					$result = $result && (strlen($plain) === fwrite($targetfile, $plain));
+				} else {
+					// decryption failed
+					$result = false;
+				}
+			}
+		} finally {
+			fclose($sourcefile);
+			fclose($targetfile);
+		}
+
+		// try to set file times
+		if ($result && (false !== $filemtime)) {
+			// fix access time if necessary
+			if (false === $fileatime) {
+				$fileatime = time();
 			}
 
-			// try to set file times
-			if ($result && (false !== $filemtime)) {
-				// fix access time if necessary
-				if (false === $fileatime) {
-					$fileatime = time();
-				}
-
-				touch($target, $filemtime, $fileatime);
-			}
+			touch($target, $filemtime, $fileatime);
 		}
 
 		return $result;
@@ -604,34 +602,33 @@
 						}
 
 						if (null !== $datafilename) {
-							$filekey  = null;
-							$keyname  = null;
-							$sharekey = null;
+							$isencrypted = false;
+							$secretkey   = null;
+							$subfolder   = null;
 
 							if ($istrashbin) {
-								$filekey  = concatPath(DATADIRECTORY,
-								                       $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-
-								foreach ($privatekeys as $key => $value) {
-									$tmp = concatPath(DATADIRECTORY,
-									                  $username."/files_encryption/keys/files_trashbin/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-									if (is_file($tmp)) {
-										$keyname  = $key;
-										$sharekey = $tmp;
-										break;
-									}
-								}
+								$subfolder = "files_trashbin/files";
 							} else {
-								$filekey  = concatPath(DATADIRECTORY,
-								                       $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+								$subfolder = "files";
+							}
+
+							$filekey = concatPath(DATADIRECTORY,
+							                      $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+							if (is_file($filekey)) {
+								$isencrypted = true;
 
 								foreach ($privatekeys as $key => $value) {
-									$tmp = concatPath(DATADIRECTORY,
-									                  $username."/files_encryption/keys/files/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-									if (is_file($tmp)) {
-										$keyname  = $key;
-										$sharekey = $tmp;
-										break;
+									$sharekey = concatPath(DATADIRECTORY,
+									                       $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+									if (is_file($sharekey)) {
+										$filekey  = file_get_contents_try_json($filekey);
+										$sharekey = file_get_contents_try_json($sharekey);
+										if ((false !== $filekey) && (false !== $sharekey)) {
+											if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key])) {
+												$secretkey = $tmpkey;
+												break;
+											}
+										}
 									}
 								}
 							}
@@ -649,11 +646,10 @@
 								mkdir(dirname($target), 0777, true);
 							}
 
-							if (is_file($filekey) && is_file($sharekey) && (null !== $keyname)) {
-								$filekey  = file_get_contents_try_json($filekey);
-								$sharekey = file_get_contents_try_json($sharekey);
-
-								$success = decryptFile($filename, $filekey, $sharekey, $privatekeys[$keyname], $target);
+							if ($isencrypted) {
+								if (null !== $secretkey) {
+									$success = decryptFile($filename, $secretkey, $target);
+								}
 							} else {
 								$success = copyUnencryptedFile($filename, $target);
 							}
