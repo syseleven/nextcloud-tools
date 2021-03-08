@@ -526,7 +526,7 @@
 
 		if (false !== $keyid) {
 			$keyModified = decryptPrivateKey($key, getKeyPassword(), $keyid);
-			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified)) {
+			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified, "rc4")) {
 				$result = true;
 
 				$strlen = strlen($file);
@@ -645,7 +645,7 @@
 
 		if (false !== $keyid) {
 			$keyModified = decryptPrivateKey($key, getKeyPassword(), $keyid);
-			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified)) {
+			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified, "rc4")) {
 				$strlen = strlen($file);
 				for ($i = 0; $i <= 1; $i++) {
 					$block = substr($file, $i*BLOCKSIZE, BLOCKSIZE);
@@ -728,7 +728,7 @@
 
 		if (false !== $keyid) {
 			$keyModified = decryptPrivateKey($key, getKeyPassword(), $keyid);
-			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified)) {
+			if (openssl_open($filekey, $filekeyModified, $sharekey, $keyModified, "rc4")) {
 				$fileModified = $file;
 				$strlen       = strlen($file);
 				for ($i = 0; $i < intval(ceil($strlen/BLOCKSIZE)); $i++) {

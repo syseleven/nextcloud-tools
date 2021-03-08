@@ -79,8 +79,11 @@
 	define("HEADER_END",       "HEND");
 	define("HEADER_START",     "HBEGIN");
 
+	// debug mode definition
+	define("DEBUG_MODE", true);
+
 	// nextcloud definitions - you can get these values from config/config.php
-	define("DATADIRECTORY", "");
+	define("DATADIRECTORY", "/home/yahe/test");
 	define("INSTANCEID",    "");
 	define("SECRET",        "");
 
@@ -115,6 +118,12 @@
 		}
 
 		return $directory.$file;
+	}
+
+	function debug($message) {
+		if (DEBUG_MODE) {
+			print("DEBUG: $message\n");
+		}
 	}
 
 	function decryptJson($file) {
@@ -566,6 +575,8 @@
 			foreach ($sources as $source => $filelist) {
 				foreach ($filelist as $filename) {
 					if (is_file($filename)) {
+						debug("filename = $filename");;
+
 						$success = false;
 
 						$datafilename = null;
@@ -602,6 +613,10 @@
 						}
 
 						if (null !== $datafilename) {
+							debug("datafilename = $datafilename");
+							debug("istrashbin = ".($istrashbin ? "true" : "false"));
+							debug("username = $username");
+
 							$isencrypted = false;
 							$secretkey   = null;
 							$subfolder   = null;
@@ -617,14 +632,19 @@
 							if (is_file($filekey)) {
 								$isencrypted = true;
 
+								debug("filekey = $filekey");
+								debug("isencrypted = ".($isencrypted ? "true" : "false"));
+
 								foreach ($privatekeys as $key => $value) {
 									$sharekey = concatPath(DATADIRECTORY,
 									                       $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
 									if (is_file($sharekey)) {
+										debug("sharekey = $sharekey");
+
 										$filekey  = file_get_contents_try_json($filekey);
 										$sharekey = file_get_contents_try_json($sharekey);
 										if ((false !== $filekey) && (false !== $sharekey)) {
-											if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key])) {
+											if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
 												$secretkey = $tmpkey;
 												break;
 											}
@@ -632,6 +652,8 @@
 									}
 								}
 							}
+
+							debug("secretkey = ".((null !== $secretkey) ? "decrypted" : "unavailable"));
 
 							// do we handle the data directory or an external storage
 							if (0 === strlen($source)) {  
@@ -648,11 +670,19 @@
 
 							if ($isencrypted) {
 								if (null !== $secretkey) {
+									debug("trying to decrypt file...");
+
 									$success = decryptFile($filename, $secretkey, $target);
+								} else {
+									debug("skipping this file...");
 								}
 							} else {
+								debug("trying to copy file...");
+
 								$success = copyUnencryptedFile($filename, $target);
 							}
+
+							debug("success = ".($success ? "true" : "false"));
 
 							if ($success) {
 								print($filename."\n");
@@ -674,6 +704,8 @@
 
 	function main($argv) {
 		$result = 0;
+
+		debug("debug mode enabled");
 
 		if (is_dir(DATADIRECTORY)) {
 			$targetdir = null;
