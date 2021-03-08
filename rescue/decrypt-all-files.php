@@ -184,7 +184,7 @@
 				$key = openssl_decrypt(stripHeader($meta["encrypted"]), $header["cipher"], $password, false, $meta["iv"]);
 				if (false !== $key) {
 					$res = openssl_pkey_get_private($key);
-					if (is_resource($res)) {
+					if (is_resource($res) || ($res instanceof OpenSSLAsymmetricKey)) {
 						$sslInfo = openssl_pkey_get_details($res);
 						if (array_key_exists("key", $sslInfo)) {
 							$result = $key;
