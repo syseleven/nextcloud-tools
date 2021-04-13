@@ -219,7 +219,7 @@
 					$keyid    = "";
 					$password = "";
 				} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-				                           "files_encryption/OC_DEFAULT_MODULE/(?<keyname>recoveryKey_[0-9a-z]+)\.privateKey$@", $filename, $matches)) {
+				                           "files_encryption/OC_DEFAULT_MODULE/(?<keyname>recovery(Key)?_[0-9a-z]+)\.privateKey$@", $filename, $matches)) {
 					$keyname  = $matches["keyname"];
 					$keyid    = "";
 					$password = RECOVERY_PASSWORD;
