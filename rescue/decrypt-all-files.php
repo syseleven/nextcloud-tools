@@ -3,7 +3,7 @@
 
 	# decrypt-all-files.php
 	#
-	# Copyright (c) 2019-2020, SysEleven GmbH
+	# Copyright (c) 2019-2021, SysEleven GmbH
 	# All rights reserved.
 	#
 	#
@@ -231,6 +231,8 @@
 						$key = decryptPrivateKey($file, $password, $keyid);
 						if (false !== $key) {
 							$result[$keyname] = $key;
+
+							debug("loaded private key for $keyname");
 						}
 					}
 				}
@@ -258,6 +260,8 @@
 							$key = decryptPrivateKey($file, $password, $keyname);
 							if (false !== $key) {
 								$result[$keyname] = $key;
+
+								debug("loaded private key for $keyname");
 							}
 						}
 					}
