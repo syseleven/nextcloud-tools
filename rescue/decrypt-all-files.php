@@ -620,7 +620,7 @@
 						}
 
 						if ((null !== $datafilename) &&
-                                                    ((null === $userdir) || (0 === strcasecmp($userdir, $username)))) {
+						    ((null === $userdir) || (0 === strcasecmp($userdir, $username)))) {
 							debug("datafilename = $datafilename");
 							debug("istrashbin = ".($istrashbin ? "true" : "false"));
 							debug("username = $username");
