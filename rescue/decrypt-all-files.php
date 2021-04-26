@@ -10,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# ./decrypt-all-files.php <targetdir>
+	# ./decrypt-all-files.php <targetdir> [<userdir>]
 	#
 	#
 	# description:
@@ -62,11 +62,14 @@
 	#
 	# To execute the script you have to call it in the following way:
 	#
-	# ./decrypt-all-files.php <targetdir>
+	# ./decrypt-all-files.php <targetdir> [<userdir>]
 	#
 	# <targetdir> (REQUIRED) this is the target directory where the decrypted files get stored, the target directory has to
 	#             already exist and it has to be empty, make sure that there is enough space to store all decrypted files in
 	#             the target directory
+	#
+	# <userdir>   (OPTIONAL) this is the name of the user whose files shall be decrypted; if this parameter is not provided
+	#             then the files of all users are going to be decrypted
 	#
 	# The execution may take a lot of time, depending on the power of your computer and on the number and size of your files.
 	# Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you
@@ -557,7 +560,7 @@
 		return $result;
 	}
 
-	function decryptAllFiles($targetdir) {
+	function decryptAllFiles($targetdir, $userdir = null) {
 		$result = 0;
 
 		$privatekeys = decryptPrivateKeys();
@@ -616,7 +619,8 @@
 							$username     = "";
 						}
 
-						if (null !== $datafilename) {
+						if ((null !== $datafilename) &&
+                                                    ((null === $userdir) || (0 === strcasecmp($userdir, $username)))) {
 							debug("datafilename = $datafilename");
 							debug("istrashbin = ".($istrashbin ? "true" : "false"));
 							debug("username = $username");
@@ -716,11 +720,16 @@
 			if (2 >= count($argv)) {
 				$targetdir = $argv[1];
 			}
+
+			$userdir = null;
+			if (3 >= count($argv)) {
+				$userdir = $argv[2];
+			}
 			
 			if ((null !== $targetdir) && is_dir($targetdir)) {
 				$filelist = recursiveScandir($targetdir, false);
 				if (0 === count($filelist)) {
-					$result = decryptAllFiles($targetdir);
+					$result = decryptAllFiles($targetdir, $userdir);
 				} else {
 					print("ERROR: TARGETDIR NOT EMPTY\n");
 					$result = 3;
