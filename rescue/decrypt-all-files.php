@@ -717,15 +717,15 @@
 
 		if (is_dir(DATADIRECTORY)) {
 			$targetdir = null;
-			if (2 >= count($argv)) {
+			if (2 <= count($argv)) {
 				$targetdir = $argv[1];
 			}
 
 			$userdir = null;
-			if (3 >= count($argv)) {
+			if (3 <= count($argv)) {
 				$userdir = $argv[2];
 			}
-			
+
 			if ((null !== $targetdir) && is_dir($targetdir)) {
 				$filelist = recursiveScandir($targetdir, false);
 				if (0 === count($filelist)) {
