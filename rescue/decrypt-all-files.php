@@ -717,12 +717,12 @@
 
 		if (is_dir(DATADIRECTORY)) {
 			$targetdir = null;
-			if (2 >= count($argv)) {
+			if (count($argv) >= 2) {
 				$targetdir = $argv[1];
 			}
 
 			$userdir = null;
-			if (3 >= count($argv)) {
+			if (count($argv) >= 3) {
 				$userdir = $argv[2];
 			}
 			
