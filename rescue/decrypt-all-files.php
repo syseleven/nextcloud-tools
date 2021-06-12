@@ -635,22 +635,22 @@
 								$subfolder = "files";
 							}
 
-							$filekey = concatPath(DATADIRECTORY,
-							                      $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-							if (is_file($filekey)) {
+							$filekeyname = concatPath(DATADIRECTORY,
+							                          $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+							if (is_file($filekeyname)) {
 								$isencrypted = true;
 
-								debug("filekey = $filekey");
+								debug("filekeyname = $filekeyname");
 								debug("isencrypted = ".($isencrypted ? "true" : "false"));
 
 								foreach ($privatekeys as $key => $value) {
-									$sharekey = concatPath(DATADIRECTORY,
-									                       $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-									if (is_file($sharekey)) {
-										debug("sharekey = $sharekey");
+									$sharekeyname = concatPath(DATADIRECTORY,
+									                           $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+									if (is_file($sharekeyname)) {
+										debug("sharekeyname = $sharekeyname");
 
-										$filekey  = file_get_contents_try_json($filekey);
-										$sharekey = file_get_contents_try_json($sharekey);
+										$filekey  = file_get_contents_try_json($filekeyname);
+										$sharekey = file_get_contents_try_json($sharekeyname);
 										if ((false !== $filekey) && (false !== $sharekey)) {
 											if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
 												$secretkey = $tmpkey;
