@@ -655,7 +655,11 @@
 											if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
 												$secretkey = $tmpkey;
 												break;
+											} else {
+												debug("secretkey could not be decrypted");
 											}
+										} else {
+											debug("filekey or sharekey could not be read from file");
 										}
 									}
 								}
