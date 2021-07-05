@@ -10,7 +10,7 @@
 	# usage:
 	# ======
 	#
-	# ./decrypt-all-files.php <targetdir> [<userdir>]
+	# ./decrypt-all-files.php <targetdir> [<sourcedir>|<sourcefile>]*
 	#
 	#
 	# description:
@@ -50,26 +50,35 @@
 	#
 	# EXTERNAL_STORAGE_* (OPTIONAL) these are the mount paths of external folders,
 	#                    you have to set these values if you used external storages within your Nextcloud instance,
-	#                    each value represents a (external storage, mount path) pair and you can set as many pairs as necessary,
+	#                    each value represents an (external storage, mount path) pair and you can set as many pairs as necessary,
 	#                    the external storage name has to be written as it is found in the "DATADIRECTORY/files_encryption/keys/files/"
 	#                    folder and be prepended with "EXTERNAL_STORAGE_",
+	#                    if the external storage belongs to a specific user then the constant name has to contain the username
+	#                    followed by a slash followed by the external storage name has to be written as it is found in the
+	#                    "DATADIRECTORY/$username/files_encryption/keys/files/" folder and be prepended with "EXTERNAL_STORAGE_",
 	#                    the external storage has to be mounted by yourself and the corresponding mount path has to be set,
 	#                    Example: if the external storage name was "sftp" and you mounted the corresponding SFTP folder as "/mnt/sshfs"
 	#                             then the value has to be set as: define("EXTERNAL_STORAGE_sftp", "/mnt/sshfs");
+	#                    Example: if the external storage name was "sftp", the external storage belonged to the user "admin" and you
+	#                             mounted the corresponding SFTP folder as "/mnt/sshfs" then the value has to be set as:
+	#                             define("EXTERNAL_STORAGE_admin/sftp", "/mnt/sshfs");
 	#
 	# execution:
 	# ==========
 	#
 	# To execute the script you have to call it in the following way:
 	#
-	# ./decrypt-all-files.php <targetdir> [<userdir>]
+	# ./decrypt-all-files.php <targetdir> [<sourcedir>|<sourcefile>]*
 	#
-	# <targetdir> (REQUIRED) this is the target directory where the decrypted files get stored, the target directory has to
-	#             already exist and it has to be empty, make sure that there is enough space to store all decrypted files in
-	#             the target directory
+	# <targetdir>  (REQUIRED) this is the target directory where the decrypted files get stored, the target directory has to
+	#              already exist and it has to be empty, make sure that there is enough space to store all decrypted files in
+	#              the target directory
 	#
-	# <userdir>   (OPTIONAL) this is the name of the user whose files shall be decrypted; if this parameter is not provided
-	#             then the files of all users are going to be decrypted
+	# <sourcedir>  (OPTIONAL) this is the name of the source folder which shall be decrypted; if this parameter is not provided
+	#              then all files in the data directory will be decrypted
+	#
+	# <sourcefile> (OPTIONAL) this is the name of the source file which shall be decrypted; if this parameter is not provided
+	#              then all files in the data directory will be decrypted
 	#
 	# The execution may take a lot of time, depending on the power of your computer and on the number and size of your files.
 	# Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you
@@ -83,10 +92,10 @@
 	define("HEADER_START",     "HBEGIN");
 
 	// debug mode definition
-	define("DEBUG_MODE", true);
+	define("DEBUG_MODE", false);
 
 	// nextcloud definitions - you can get these values from config/config.php
-	define("DATADIRECTORY", "/home/yahe/test");
+	define("DATADIRECTORY", "");
 	define("INSTANCEID",    "");
 	define("SECRET",        "");
 
@@ -144,16 +153,21 @@
 
 			if ($proceed) {
 				$ciphertext = hex2bin($parts[0]);
+				$key        = SECRET;
 				$iv         = $parts[1];
 
 				if ($partCount === 4) {
 					$version = $parts[3];
-					if ($version === "2") {
+					if (intval($version) >= 2) {
 						$iv = hex2bin($iv);
+					}
+					if (intval($version) === 3) {
+						$temp = hash_hkdf("sha512", $key);
+						$key  = substr($temp, 0, 32);
 					}
 				}
 
-				$key  = hash_pbkdf2("sha1", SECRET, "phpseclib", 1000, 16, true);
+				$key  = hash_pbkdf2("sha1", $key, "phpseclib", 1000, 16, true);
 				$json = openssl_decrypt($ciphertext, "aes-128-cbc", $key, OPENSSL_RAW_DATA, $iv);
 
 				if (false !== $json) {
@@ -560,155 +574,214 @@
 		return $result;
 	}
 
-	function decryptAllFiles($targetdir, $userdir = null) {
+	function decryptAllFiles($targetdir, $sourcepaths = null) {
 		$result = 0;
 
 		$privatekeys = decryptPrivateKeys();
 		if (0 < count($privatekeys)) {
 			// collect all file sources
-			$sources = [null => recursiveScandir(DATADIRECTORY, true)];
+			$sources = [];
 
-			foreach (array_keys(get_defined_constants(true)["user"]) as $constant) {
-				if (0 === strpos($constant, EXTERNAL_STORAGE)) {
-					if (is_dir(constant($constant))) {
-						$sources[substr($constant, strlen(EXTERNAL_STORAGE))] = recursiveScandir(constant($constant), true);
-					} else {
-						print("ERROR: EXTERNAL STORAGE ".constant($constant)." DOES NOT EXIST\n");
-						$result = 5;
+			// set sourcepaths to all folders in the data directory
+			if ((null === $sourcepaths) || (0 === count($sourcepaths))) {
+				$sourcepaths = recursiveScandir(DATADIRECTORY, false);
+			}
+
+			// add the sourcepaths entries as sources
+			foreach ($sourcepaths as $path) {
+				// only handle non-empty paths
+				if (0 < strlen($path)) {
+					// make sure that the given path is a full path
+					if ("/" !== $path[0]) {
+						$path = concatPath(DATADIRECTORY, $path);
+					}
+
+					// only add path to source if it exists
+					if (is_file($path) || is_dir($path)) {
+						$sources["\0".count($sources)] = $path;
 					}
 				}
 			}
 
-			foreach ($sources as $source => $filelist) {
+			// add external storage folders as sources
+			foreach (array_keys(get_defined_constants(true)["user"]) as $constant) {
+				if (0 === strpos($constant, EXTERNAL_STORAGE)) {
+					if (is_dir(constant($constant))) {
+						$sources[substr($constant, strlen(EXTERNAL_STORAGE))] = constant($constant);
+					} else {
+						print("ERROR: EXTERNAL STORAGE ".constant($constant)." DOES NOT EXIST\n");
+						$result = 4;
+					}
+				}
+			}
+
+			foreach ($sources as $source => $path) {
+				// get the filelist in-time
+				$filelist = null;
+				if (is_file($path)) {
+					$filelist = [$path];
+				} else {
+					$filelist = recursiveScandir($path);
+				}
+
 				foreach ($filelist as $filename) {
 					if (is_file($filename)) {
-						debug("filename = $filename");;
+						debug("filename = $filename");
 
-						$success = false;
-
-						$datafilename = null;
-						$istrashbin   = false;
-						$username     = null;
-
-						// do we handle the data directory or an external storage
-						if (0 === strlen($source)) {
-							if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-							                     "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
-								$datafilename = $matches["datafilename"];
-								$istrashbin   = false;
-								$username     = $matches["username"];
-							} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-							                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
-								$datafilename = $matches["datafilename"];
-								$istrashbin   = true;
-								$username     = $matches["username"];
-							} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-							                           "(?<username>[^/]+)/files_versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
-								$datafilename = $matches["datafilename"];
-								$istrashbin   = false;
-								$username     = $matches["username"];
-							} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
-							                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
-								$datafilename = $matches["datafilename"].$matches["deletetime"];
-								$istrashbin   = true;
-								$username     = $matches["username"];
-							}
+						// generate target filename
+						$target = null;
+						if ("\0" === $source[0]) {
+							$target = concatPath($targetdir, substr($filename, strlen(DATADIRECTORY)));
 						} else {
-							$datafilename = concatPath($source, substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
-							$istrashbin   = false;
-							$username     = "";
-						}
-
-						if ((null !== $datafilename) &&
-						    ((null === $userdir) || (0 === strcasecmp($userdir, $username)))) {
-							debug("datafilename = $datafilename");
-							debug("istrashbin = ".($istrashbin ? "true" : "false"));
-							debug("username = $username");
-
-							$isencrypted = false;
-							$secretkey   = null;
-							$subfolder   = null;
-
-							if ($istrashbin) {
-								$subfolder = "files_trashbin/files";
+							// do we handle a user-specific external storage
+							if (false === strpos($source, "/")) {
+								$target = concatPath(concatPath($targetdir, EXTERNAL_STORAGE.$source),
+								                     substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
 							} else {
-								$subfolder = "files";
+								$target = concatPath(concatPath(concatPath($targetdir, substr($source, 0, strpos($source, "/"))),
+								                                EXTERNAL_STORAGE.substr($source, strpos($source, "/")+1)),
+								                     substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+							}
+						}
+						debug("target = $target");
+
+						// only proceed if the target does not already exist
+						if (!is_file($target)) {
+							$success = false;
+
+							$datafilename = null;
+							$istrashbin   = false;
+							$username     = null;
+
+							// do we handle the data directory or an external storage
+							if ("\0" === $source[0]) {
+								if (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+								                     "(?<username>[^/]+)/files/(?<datafilename>.+)$@", $filename, $matches)) {
+									$datafilename = $matches["datafilename"];
+									$istrashbin   = false;
+									$username     = $matches["username"];
+								} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+								                           "(?<username>[^/]+)/files_trashbin/files/(?<datafilename>.+)$@", $filename, $matches)) {
+									$datafilename = $matches["datafilename"];
+									$istrashbin   = true;
+									$username     = $matches["username"];
+								} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+								                           "(?<username>[^/]+)/files_versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
+									$datafilename = $matches["datafilename"];
+									$istrashbin   = false;
+									$username     = $matches["username"];
+								} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+								                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
+									$datafilename = $matches["datafilename"].$matches["deletetime"];
+									$istrashbin   = true;
+									$username     = $matches["username"];
+								}
+							} else {
+								// do we handle a user-specific external storage
+								if (false === strpos($source, "/")) {
+									$datafilename = concatPath($source,
+									                           substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+									$istrashbin   = false;
+									$username     = "";
+								} else {
+									$datafilename = concatPath(substr($source, strpos($source, "/")+1),
+									                           substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+									$istrashbin   = false;
+									$username     = substr($source, 0, strpos($source, "/"));
+								}
 							}
 
-							$filekeyname = concatPath(DATADIRECTORY,
-							                          $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
-							if (is_file($filekeyname)) {
-								$isencrypted = true;
+							// do we know how to handle this specific file path
+							if (null !== $datafilename) {
+								debug("datafilename = $datafilename");
+								debug("istrashbin = ".($istrashbin ? "true" : "false"));
+								debug("username = $username");
 
-								debug("filekeyname = $filekeyname");
-								debug("isencrypted = ".($isencrypted ? "true" : "false"));
+								$isencrypted = false;
+								$secretkey   = null;
+								$subfolder   = null;
 
-								foreach ($privatekeys as $key => $value) {
-									$sharekeyname = concatPath(DATADIRECTORY,
-									                           $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
-									if (is_file($sharekeyname)) {
-										debug("sharekeyname = $sharekeyname");
+								if ($istrashbin) {
+									$subfolder = "files_trashbin/files";
+								} else {
+									$subfolder = "files";
+								}
 
-										$filekey  = file_get_contents_try_json($filekeyname);
-										$sharekey = file_get_contents_try_json($sharekeyname);
-										if ((false !== $filekey) && (false !== $sharekey)) {
-											if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
-												$secretkey = $tmpkey;
-												break;
+								$filekeyname = concatPath(DATADIRECTORY,
+								                          $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+								if (is_file($filekeyname)) {
+									$isencrypted = true;
+
+									debug("filekeyname = $filekeyname");
+									debug("isencrypted = ".($isencrypted ? "true" : "false"));
+
+									foreach ($privatekeys as $key => $value) {
+										$sharekeyname = concatPath(DATADIRECTORY,
+										                           $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+										if (is_file($sharekeyname)) {
+											debug("sharekeyname = $sharekeyname");
+
+											$filekey  = file_get_contents_try_json($filekeyname);
+											$sharekey = file_get_contents_try_json($sharekeyname);
+											if ((false !== $filekey) && (false !== $sharekey)) {
+												if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
+													$secretkey = $tmpkey;
+													break;
+												} else {
+													debug("secretkey could not be decrypted");
+												}
 											} else {
-												debug("secretkey could not be decrypted");
+												debug("filekey or sharekey could not be read from file");
 											}
-										} else {
-											debug("filekey or sharekey could not be read from file");
 										}
 									}
 								}
-							}
+								debug("secretkey = ".((null !== $secretkey) ? "decrypted" : "unavailable"));
 
-							debug("secretkey = ".((null !== $secretkey) ? "decrypted" : "unavailable"));
+								// try to recursively create the target subfolder
+								if (!is_dir(dirname($target))) {
+									mkdir(dirname($target), 0777, true);
+								}
 
-							// do we handle the data directory or an external storage
-							if (0 === strlen($source)) {  
-								$target = concatPath($targetdir, substr($filename, strlen(DATADIRECTORY)));
-							} else {
-								$target = concatPath(concatPath($targetdir, EXTERNAL_STORAGE.$source),
-								                     substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
-							}
+								if ($isencrypted) {
+									if (null !== $secretkey) {
+										debug("trying to decrypt file...");
 
-							// try to recursively create the target subfolder
-							if (!is_dir(dirname($target))) {
-								mkdir(dirname($target), 0777, true);
-							}
-
-							if ($isencrypted) {
-								if (null !== $secretkey) {
-									debug("trying to decrypt file...");
-
-									$success = decryptFile($filename, $secretkey, $target);
+										$success = decryptFile($filename, $secretkey, $target);
+									} else {
+										debug("cannot decrypt this file...");
+									}
 								} else {
-									debug("skipping this file...");
+									debug("trying to copy file...");
+
+									$success = copyUnencryptedFile($filename, $target);
+								}
+								debug("success = ".($success ? "true" : "false"));
+
+								if ($success) {
+									print("DONE: $filename\n");
+								} else {
+									// we failed but created a file,
+									// discard the broken file
+									if (is_file($target)) {
+										unlink($target);
+									}
+
+									print("ERROR: $filename FAILED\n");
+									$result = 5;
 								}
 							} else {
-								debug("trying to copy file...");
-
-								$success = copyUnencryptedFile($filename, $target);
+								debug("skipping this file...");
 							}
-
-							debug("success = ".($success ? "true" : "false"));
-
-							if ($success) {
-								print($filename."\n");
-							} else {
-								print("ERROR: ".$filename." FAILED\n");
-								$result = 6;
-							}
+						} else {
+							print("SKIP: $target ALREADY EXISTS\n");
 						}
 					}
 				}
 			}
 		} else {
 			print("ERROR: COULD NOT DECRYPT ANY PRIVATE KEY\n");
-			$result = 4;
+			$result = 3;
 		}
 
 		return $result;
@@ -725,19 +798,13 @@
 				$targetdir = $argv[1];
 			}
 
-			$userdir = null;
+			$sourcepaths = [];
 			if (3 <= count($argv)) {
-				$userdir = $argv[2];
+				$sourcepaths = array_slice($argv, 2);
 			}
 
 			if ((null !== $targetdir) && is_dir($targetdir)) {
-				$filelist = recursiveScandir($targetdir, false);
-				if (0 === count($filelist)) {
-					$result = decryptAllFiles($targetdir, $userdir);
-				} else {
-					print("ERROR: TARGETDIR NOT EMPTY\n");
-					$result = 3;
-				}
+				$result = decryptAllFiles($targetdir, $sourcepaths);
 			} else {
 				print("ERROR: TARGETDIR NOT GIVEN OR DOES NOT EXIST\n");
 				$result = 2;
@@ -746,6 +813,8 @@
 			print("ERROR: DATADIRECTORY DOES NOT EXIST\n");
 			$result = 1;
 		}
+
+		debug("exiting");
 
 		return $result;
 	}

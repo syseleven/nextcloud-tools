@@ -10,6 +10,8 @@ Rescue tooling is located in the `./rescue/` subfolder.
 
 The `decrypt-all-files.php` script contains a re-implementation of Nextcloud's file decryption process. It decrypts all files in the Nextcloud data directory and stores the decrypted files in a target directory. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
 
+**Update:** The `decrypt-all-files-php` script now has improved support for external storages as well as the updated encrypted JSON key format that is introduced with the Nextcloud 21 release. It also supports the decryption of single files and a failed encryption can be resumed by starting the script again.
+
 **Update:** The `decrypt-all-files-php` script now has basic support for external storages as well as the encrypted JSON key format that is introduced with the Nextcloud 20 release.
 
 #### Configuration
@@ -28,18 +30,19 @@ The custom definitions define how the `decrypt-all-files.php` script works inter
 
 * `RECOVERY_PASSWORD` - defines the password of the recovery key when the recovery key support is activated through `KEYTYPE`.
 * `USER_PASSWORD_*` - defines the passwords for the user keys, you have to set these values if you disabled the master key encryption of your Nextcloud instance, do not set these values if you did not disable the master key encryption your Nextcloud instance, each value represents a (username, password) pair and you can set as many pairs as necessary, the username has to be written in uppercase characters and be prepended with `USER_PASSWORD_`, **Example:** if the username was `beispiel` and the password of that user was `example` then the value has to be set as: `define("USER_PASSWORD_BEISPIEL", "example");`
-* `EXTERNAL_STORAGE_*` - these are the mount paths of external folders, you have to set these values if you used external storages within your Nextcloud instance, each value represents a (external storage, mount path) pair and you can set as many pairs as necessary, the external storage name has to be written as it is found in the `DATADIRECTORY/files_encryption/keys/files/` folder and be prepended with `EXTERNAL_STORAGE_`, the external storage has to be mounted by yourself and the corresponding mount path has to be set, **Example:** if the external storage name was `sftp` and you mounted the corresponding SFTP folder as `/mnt/sshfs` then the value has to be set as: `define("EXTERNAL_STORAGE_sftp", "/mnt/sshfs");`
+* `EXTERNAL_STORAGE_*` - these are the mount paths of external folders, you have to set these values if you used external storages within your Nextcloud instance, each value represents an (external storage, mount path) pair and you can set as many pairs as necessary, the external storage name has to be written as it is found in the `DATADIRECTORY/files_encryption/keys/files/` folder and be prepended with `EXTERNAL_STORAGE_`, if the external storage belongs to a specific user then the constant name has to contain the username followed by a slash followed by the external storage name has to be written as it is found in the `DATADIRECTORY/$username/files_encryption/keys/files/` folder and be prepended with `EXTERNAL_STORAGE_`, the external storage has to be mounted by yourself and the corresponding mount path has to be set, **Example:** if the external storage name was `sftp` and you mounted the corresponding SFTP folder as `/mnt/sshfs` then the value has to be set as: `define("EXTERNAL_STORAGE_sftp", "/mnt/sshfs");`, **Example:** if the external storage name was `sftp`, the external storage belonged to the user `admin` and you mounted the corresponding SFTP folder as `/mnt/sshfs` then the value has to be set as: `define("EXTERNAL_STORAGE_admin/sftp", "/mnt/sshfs");`
 
 #### Execution
 
 To execute the script you have to call it in the following way:
 
 ```
-./rescue/decrypt-all-files.php <targetdir> [<userdir>]
+./decrypt-all-files.php <targetdir> [<sourcedir>|<sourcefile>]*
 ```
 
 * `<targetdir>` - defines the target directory where the decrypted files get stored, the target directory has to already exist and it has to be empty, make sure that there is enough space to store all decrypted files in the target directory
-* `<userdir>` - this is the name of the user whose files shall be decrypted; if this parameter is not provided then the files of all users are going to be decrypted
+* `<sourcedir>` - this is the name of the source folder which shall be decrypted; if this parameter is not provided then all files in the data directory will be decrypted
+* `<sourcefile>` - this is the name of the source file which shall be decrypted; if this parameter is not provided then all files in the data directory will be decrypted
 
 The execution may take a lot of time, depending on the power of your computer and on the number and size of your files. Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you can achieve this by starting the script within a _screen_ session. Also, the script currently does **not** support the decryption of files in the trashbin that have been deleted from external storages. If you need this specific feature then please contact the author.
 
