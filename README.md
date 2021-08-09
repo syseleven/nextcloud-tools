@@ -54,6 +54,8 @@ Debug tooling is located in the `./debug/` subfolder.
 
 The `check-signature.php` script contains a re-implementation of Nextcloud's signature checking process. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
 
+**Update:** Nextcloud now finally supports the correction of version information through the `./occ encryption:fix-encrypted-version` command which has been ported over from OwnCloud. Using the built-in command will be easier to use to fix broken file signatures.
+
 #### Preparation
 
 As the `check-signature.php` script does not implement database accesses, the necessary Nextcloud database tables have to be provided in the form of well-structured CSV files. These files can be exported directly from the database.
@@ -136,6 +138,8 @@ The `check-signature.php` scripts supports to check the whole Nextcloud data dir
 ### decrypt-file.php
 
 The `decrypt-file.php` script contains a re-implementation of Nextcloud's file decryption process. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
+
+**Update:** Use the [`decrypt-all-files.php`](#decrypt-all-filesphp) script instead, which finally supports the decryption of single files as well, but is actively maintained.
 
 #### Configuration
 
