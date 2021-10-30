@@ -41,8 +41,8 @@ To execute the script you have to call it in the following way:
 ```
 
 * `<targetdir>` - defines the target directory where the decrypted files get stored, the target directory has to already exist and it has to be empty, make sure that there is enough space to store all decrypted files in the target directory
-* `<sourcedir>` - this is the name of the source folder which shall be decrypted; if this parameter is not provided then all files in the data directory will be decrypted
-* `<sourcefile>` - this is the name of the source file which shall be decrypted; if this parameter is not provided then all files in the data directory will be decrypted
+* `<sourcedir>` - this is the name of the source folder which shall be decrypted, relative to `DATADIRECTORY`; if this parameter is not provided then all files in the data directory will be decrypted
+* `<sourcefile>` - this is the name of the source file which shall be decrypted, relative to `DATADIRECTORY`; if this parameter is not provided then all files in the data directory will be decrypted
 
 The execution may take a lot of time, depending on the power of your computer and on the number and size of your files. Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you can achieve this by starting the script within a _screen_ session. Also, the script currently does **not** support the decryption of files in the trashbin that have been deleted from external storages. If you need this specific feature then please contact the author.
 
