@@ -3,7 +3,7 @@
 
 	# decrypt-all-files.php
 	#
-	# Copyright (c) 2019-2021, SysEleven GmbH
+	# Copyright (c) 2019-2022, SysEleven GmbH
 	# All rights reserved.
 	#
 	#
@@ -74,11 +74,11 @@
 	#              already exist and it has to be empty, make sure that there is enough space to store all decrypted files in
 	#              the target directory
 	#
-	# <sourcedir>  (OPTIONAL) this is the name of the source folder which shall be decrypted; if this parameter is not provided
-	#              then all files in the data directory will be decrypted
+	# <sourcedir>  (OPTIONAL) this is the name of the source folder which shall be decrypted, either absolute or relative to
+	#              the DATADIRECTORY; if this parameter is not provided then all files in the data directory will be decrypted
 	#
-	# <sourcefile> (OPTIONAL) this is the name of the source file which shall be decrypted; if this parameter is not provided
-	#              then all files in the data directory will be decrypted
+	# <sourcefile> (OPTIONAL) this is the name of the source file which shall be decrypted, either absolute or relative to
+	#              the DATADIRECTORY; if this parameter is not provided then all files in the data directory will be decrypted
 	#
 	# The execution may take a lot of time, depending on the power of your computer and on the number and size of your files.
 	# Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you
