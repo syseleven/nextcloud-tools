@@ -363,6 +363,10 @@
 				$result[$element] = array_shift($exploded);
 				$element          = array_shift($exploded);
 			}
+		} else {
+			debug("Key is using legacy format, setting cipher and key format");
+			$result["cipher"] = "AES-128-CFB";
+			$result["keyFormat"] = "password";
 		}
 
 		return $result;
@@ -430,7 +434,12 @@
 	}
 
 	function stripHeader($encrypted) {
-		return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
+		# Don't strip header if legacy format (not using HEADER_START/HEADER_END)
+		if (substr($encrypted, 0, strlen(HEADER_START)) === HEADER_START) {
+			return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
+		} else {
+			return $encrypted;
+		}
 	}
 
 	function decryptBlock($header, $block, $secretkey) {
