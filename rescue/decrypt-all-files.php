@@ -556,6 +556,12 @@
 				$block  = substr($buffer, 0, BLOCKSIZE);
 				$buffer = substr($buffer, BLOCKSIZE);
 
+				// the file only has 1 block, parsing the header before decryption
+				if ($first) {
+					$first  = false;
+					$header = parseHeader($block);
+				}
+
 				$plain = decryptBlock($header, $block, $secretkey);
 				if (false !== $plain) {
 					// write fails when fewer bytes than string length are written
