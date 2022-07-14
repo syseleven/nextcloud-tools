@@ -348,7 +348,9 @@
 		return ($pos !== false);
 	}
 
-	function parseHeader($file) {
+	function parseHeader($file, $checkForLegacy = true) {
+		# If checkForLegacy, the legacy cipher/keyFormat will be returned if the header parsing fails
+
 		$result = [];
 
 		if (substr($file, 0, strlen(HEADER_START)) === HEADER_START) {
@@ -363,6 +365,10 @@
 				$result[$element] = array_shift($exploded);
 				$element          = array_shift($exploded);
 			}
+		} else if ($checkForLegacy) {
+			debug("Key is using legacy format, setting cipher and key format");
+			$result["cipher"] = "AES-128-CFB";
+			$result["keyFormat"] = "password";
 		}
 
 		return $result;
@@ -430,7 +436,12 @@
 	}
 
 	function stripHeader($encrypted) {
-		return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
+		# Don't strip header if legacy format (not using HEADER_START/HEADER_END)
+		if (substr($encrypted, 0, strlen(HEADER_START)) === HEADER_START) {
+			return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
+		} else {
+			return $encrypted;
+		}
 	}
 
 	function decryptBlock($header, $block, $secretkey) {
@@ -474,7 +485,7 @@
 			} while ((BLOCKSIZE > strlen($buffer)) && (!feof($sourcefile)));
 
 			// check if the source file does not start with a header
-			$header  = parseHeader(substr($buffer, 0, BLOCKSIZE));
+			$header  = parseHeader(substr($buffer, 0, BLOCKSIZE), false);
 			$isplain = (0 === count($header));
 		} finally {
 			fclose($sourcefile);
@@ -546,6 +557,12 @@
 			while (0 < strlen($buffer)) {
 				$block  = substr($buffer, 0, BLOCKSIZE);
 				$buffer = substr($buffer, BLOCKSIZE);
+
+				// the file only has 1 block, parsing the header before decryption
+				if ($first) {
+					$first  = false;
+					$header = parseHeader($block);
+				}
 
 				$plain = decryptBlock($header, $block, $secretkey);
 				if (false !== $plain) {
