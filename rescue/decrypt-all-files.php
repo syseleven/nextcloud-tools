@@ -116,6 +116,21 @@
 	// define("EXTERNAL_STORAGE_STORAGEB", "");
 	// define("EXTERNAL_STORAGE_STORAGEC", "");
 
+	// define as a constant to speed up decryptions
+	define("REPLACE_RC4_ALGO", checkReplaceRC4Algo());
+
+	function checkReplaceRC4Algo() {
+		// with OpenSSL v3 we assume that we have to replace the RC4 algo
+		$result = (OPENSSL_VERSION_NUMBER >= 0x30000000);
+
+		if ($result) {
+			// maybe someone has re-enabled the legacy support in OpenSSL v3
+			$result = (false === openssl_encrypt("test", "rc4", "test", OPENSSL_RAW_DATA, null, $tag, null, 0));
+		}
+
+		return $result;
+	}
+
 	function concatPath($directory, $file) {
 		if (0 < strlen($directory)) {
 			if ("/" !== $directory[strlen($directory)-1]) {
@@ -351,7 +366,7 @@
 		return ($pos !== false);
 	}
 
-	# if $checkForLegacy is TRUE then the legacy cipher and keyFormat will be returned when the header parsing fails
+	// if $checkForLegacy is TRUE then the legacy cipher and keyFormat will be returned when the header parsing fails
 	function parseHeader($file, $checkForLegacy = true) {
 		$result = [];
 
@@ -371,6 +386,47 @@
 			$result["cipher"]    = "AES-128-CFB";
 			$result["keyFormat"] = "password";
 			debug("key is using legacy format, setting cipher and key format");
+		}
+
+		return $result;
+	}
+
+	// hands-down implementation of RC4
+	function rc4($data, $secret) {
+		$result = false;
+
+		// initialize $state
+		$state = [];
+		for ($i = 0x00; $i <= 0xFF; $i++) {
+			$state[$i] = $i;
+		}
+
+		// mix $secret into $state
+		$indexA = 0x00;
+		$indexB = 0x00;
+		for ($i = 0x00; $i <= 0xFF; $i++) {
+			$indexB = ($indexB + ord($secret[$indexA]) + $state[$i]) % 0x100;
+
+			$tmp            = $state[$i];
+			$state[$i]      = $state[$indexB];
+			$state[$indexB] = $tmp;
+
+			$indexA = ($indexA + 0x01) % strlen($secret);
+		}
+
+		// decrypt $data with $state
+		$indexA = 0x00;
+		$indexB = 0x00;
+		$result = "";
+		for ($i = 0x00; $i < strlen($data); $i++) {
+			$indexA = ($indexA + 0x01) % 0x100;
+			$indexB = ($state[$indexA] + $indexB) % 0x100;
+
+			$tmp            = $state[$indexA];
+			$state[$indexA] = $state[$indexB];
+			$state[$indexB] = $tmp;
+
+			$result .= chr(ord($data[$i]) ^ $state[($state[$indexA] + $state[$indexB]) % 0x100]);
 		}
 
 		return $result;
@@ -444,6 +500,29 @@
 		} else {
 			return $encrypted;
 		}
+	}
+
+	function wrapped_openssl_open($data, &$output, $encrypted_key, $private_key, $cipher_algo, $iv = null) {
+		$result = false;
+
+		if ((0 === strcasecmp($cipher_algo, "rc4")) && REPLACE_RC4_ALGO) {
+			if (openssl_private_decrypt($encrypted_key, $intermediate, $private_key, OPENSSL_PKCS1_PADDING)) {
+				$output = rc4($data, $intermediate);
+				$result = (false !== $output);
+				if (!$result) {
+					debug("rc4() failed");
+				}
+			} else {
+				debug("openssl_private_decrypt() failed: ".openssl_error_string());
+			}
+		} else {
+			$result = openssl_open($data, $output, $encrypted_key, $private_key, $cipher_algo, $iv);
+			if (!$result) {
+				debug("openssl_open() failed: ".openssl_error_string());
+			}
+		}
+
+		return $result;
 	}
 
 	function decryptBlock($header, $block, $secretkey) {
@@ -745,11 +824,11 @@
 											$filekey  = file_get_contents_try_json($filekeyname);
 											$sharekey = file_get_contents_try_json($sharekeyname);
 											if ((false !== $filekey) && (false !== $sharekey)) {
-												if (openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
+												if (wrapped_openssl_open($filekey, $tmpkey, $sharekey, $privatekeys[$key], "rc4")) {
 													$secretkey = $tmpkey;
 													break;
 												} else {
-													debug("secretkey could not be decrypted: ".openssl_error_string());
+													debug("secretkey could not be decrypted");
 												}
 											} else {
 												debug("filekey or sharekey could not be read from file");
