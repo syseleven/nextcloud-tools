@@ -10,6 +10,22 @@ Rescue tooling is located in the `./rescue/` subfolder.
 
 The `decrypt-all-files.php` script contains a re-implementation of Nextcloud's file decryption process. It decrypts all files in the Nextcloud data directory and stores the decrypted files in a target directory. It supports different types of private keys - including master keys, public sharing keys, recovery keys and user keys. Furthermore, it supports different types of files - including regular files, version files, trashed files and trashed version files.
 
+**Update:** It may happen that the decryption fails if you use a system that has OpenSSL v3 installed. This problem arises as Nextcloud has chosen the legacy [RC4](https://en.wikipedia.org/wiki/RC4) encryption cipher which OpenSSL v3 does not support by default anymore. If the decryption fails, check if `openssl version` shows that OpenSSL v3 is installed. If that is the case then add the following configuration block prepared by [@MartB](https://github.com/MartB) to your `openssl.cnf` file to re-enable the support for legacy algorithms:
+
+```
+[provider_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
+```
+
+**Update:** [@fastlorenzo](https://github.com/fastlorenzo) has provided a patch so that the script now supports even older encrypted files.
+
 **Update:** The `decrypt-all-files-php` script now has improved support for external storages as well as the updated encrypted JSON key format that is introduced with the Nextcloud 21 release. It also supports the decryption of single files and a failed encryption can be resumed by starting the script again.
 
 **Update:** The `decrypt-all-files-php` script now has basic support for external storages as well as the encrypted JSON key format that is introduced with the Nextcloud 20 release.

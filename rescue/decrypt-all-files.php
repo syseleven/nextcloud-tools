@@ -169,7 +169,6 @@
 
 				$key  = hash_pbkdf2("sha1", $key, "phpseclib", 1000, 16, true);
 				$json = openssl_decrypt($ciphertext, "aes-128-cbc", $key, OPENSSL_RAW_DATA, $iv);
-
 				if (false !== $json) {
 					$json = json_decode($json, true);
 					if (is_array($json)) {
@@ -177,6 +176,8 @@
 							$result = base64_decode($json["key"]);
 						}
 					}
+				} else {
+					debug("json could not be decrypted: ".openssl_error_string());
 				}
 			}
 		}
@@ -207,6 +208,8 @@
 							$result = $key;
 						}
 					}
+				} else {
+					debug("privatekey could not be decrypted: ".openssl_error_string());
 				}
 			}
 		}
@@ -348,9 +351,8 @@
 		return ($pos !== false);
 	}
 
+	# if $checkForLegacy is TRUE then the legacy cipher and keyFormat will be returned when the header parsing fails
 	function parseHeader($file, $checkForLegacy = true) {
-		# If checkForLegacy, the legacy cipher/keyFormat will be returned if the header parsing fails
-
 		$result = [];
 
 		if (substr($file, 0, strlen(HEADER_START)) === HEADER_START) {
@@ -366,9 +368,9 @@
 				$element          = array_shift($exploded);
 			}
 		} else if ($checkForLegacy) {
-			debug("Key is using legacy format, setting cipher and key format");
-			$result["cipher"] = "AES-128-CFB";
+			$result["cipher"]    = "AES-128-CFB";
 			$result["keyFormat"] = "password";
+			debug("key is using legacy format, setting cipher and key format");
 		}
 
 		return $result;
@@ -456,6 +458,8 @@
 				$output = openssl_decrypt($meta["encrypted"], $header["cipher"], $secretkey, false, $meta["iv"]);
 				if (false !== $output) {
 					$result = $output;
+				} else {
+					debug("block could not be decrypted: ".openssl_error_string());
 				}
 			}
 		}
@@ -745,7 +749,7 @@
 													$secretkey = $tmpkey;
 													break;
 												} else {
-													debug("secretkey could not be decrypted");
+													debug("secretkey could not be decrypted: ".openssl_error_string());
 												}
 											} else {
 												debug("filekey or sharekey could not be read from file");
