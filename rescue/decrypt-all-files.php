@@ -382,7 +382,7 @@
 				$result[$element] = array_shift($exploded);
 				$element          = array_shift($exploded);
 			}
-		} else if ($checkForLegacy) {
+		} elseif ($checkForLegacy) {
 			$result["cipher"]    = "AES-128-CFB";
 			$result["keyFormat"] = "password";
 			debug("key is using legacy format, setting cipher and key format");
