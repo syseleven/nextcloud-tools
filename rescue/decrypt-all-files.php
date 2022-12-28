@@ -433,7 +433,7 @@
 				$result[$element] = array_shift($exploded);
 				$element          = array_shift($exploded);
 			}
-		} else if ($supportMissingHeaders) {
+		} elseif ($supportMissingHeaders) {
 			// prepare default values
 			$result[HEADER_CIPHER]               = HEADER_CIPHER_LEGACY;
 			$result[HEADER_ENCODING]             = HEADER_ENCODING_BASE64;
@@ -849,6 +849,11 @@
 								} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
 								                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+(?<deletetime>\.d[0-9]+)$@", $filename, $matches)) {
 									$datafilename = $matches["datafilename"].$matches["deletetime"];
+									$istrashbin   = true;
+									$username     = $matches["username"];
+								} elseif (1 === preg_match("@^".preg_quote(concatPath(DATADIRECTORY, ""), "@").
+								                           "(?<username>[^/]+)/files_trashbin/versions/(?<datafilename>.+)\.v[0-9]+$@", $filename, $matches)) {
+									$datafilename = $matches["datafilename"];
 									$istrashbin   = true;
 									$username     = $matches["username"];
 								}
