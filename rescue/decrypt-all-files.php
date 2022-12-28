@@ -1,4 +1,4 @@
-#!/usr/bin/php
+#!/usr/bin/env php
 <?php
 
 	# decrypt-all-files.php
@@ -26,42 +26,47 @@
 	#
 	# In order to use the script you have to configure the given values below:
 	#
-	# DATADIRECTORY      (REQUIRED) this is the location of the data directory of your Nextcloud instance,
-	#                    if you copied or moved your data directory then you have to set this value accordingly,
-	#                    this directory has to exist and contain the typical file structure of Nextcloud
+	# DATADIRECTORY           (REQUIRED) this is the location of the data directory of your Nextcloud instance,
+	#                         if you copied or moved your data directory then you have to set this value accordingly,
+	#                         this directory has to exist and contain the typical file structure of Nextcloud
 	#
-	# INSTANCEID         (REQUIRED) this is a value from the Nextcloud configuration file,
-	#                    there does not seem to be another way to retrieve this value
+	# INSTANCEID              (REQUIRED) this is a value from the Nextcloud configuration file,
+	#                         there does not seem to be another way to retrieve this value
 	#
-	# SECRET             (REQUIRED) this is a value from the Nextcloud configuration file,
-	#                    there does not seem to be another way to retrieve this value
+	# SECRET                  (REQUIRED) this is a value from the Nextcloud configuration file,
+	#                         there does not seem to be another way to retrieve this value
 	#
-	# RECOVERY_PASSWORD  (OPTIONAL) this is the password for the recovery key,
-	#                    you can set this value if you activated the recovery feature of your Nextcloud instance,
-	#                    leave this value empty if you did not acticate the recovery feature of your Nextcloud instance
+	# RECOVERY_PASSWORD       (OPTIONAL) this is the password for the recovery key,
+	#                         you can set this value if you activated the recovery feature of your Nextcloud instance,
+	#                         leave this value empty if you did not acticate the recovery feature of your Nextcloud instance
 	#
-	# USER_PASSWORD_*    (OPTIONAL) these are the passwords for the user keys,
-	#                    you have to set these values if you disabled the master key encryption of your Nextcloud instance,
-	#                    do not set these values if you did not disable the master key encryption your Nextcloud instance,
-	#                    each value represents a (username, password) pair and you can set as many pairs as necessary,
-	#                    the username has to be written in uppercase characters and be prepended with "USER_PASSWORD_",
-	#                    Example: if the username was "beispiel" and the password of that user was "example" then the value
-	#                             has to be set as: define("USER_PASSWORD_BEISPIEL", "example");
+	# USER_PASSWORDS          (OPTIONAL) these are the passwords for the user keys,
+	#                         you have to set these values if you disabled the master key encryption of your Nextcloud instance,
+	#                         you do not have to set these values if you did not disable the master key encryption of your Nextcloud instance,
+	#                         each value represents a (username, password) pair and you can set as many pairs as necessary
 	#
-	# EXTERNAL_STORAGE_* (OPTIONAL) these are the mount paths of external folders,
-	#                    you have to set these values if you used external storages within your Nextcloud instance,
-	#                    each value represents an (external storage, mount path) pair and you can set as many pairs as necessary,
-	#                    the external storage name has to be written as it is found in the "DATADIRECTORY/files_encryption/keys/files/"
-	#                    folder and be prepended with "EXTERNAL_STORAGE_",
-	#                    if the external storage belongs to a specific user then the constant name has to contain the username
-	#                    followed by a slash followed by the external storage name has to be written as it is found in the
-	#                    "DATADIRECTORY/$username/files_encryption/keys/files/" folder and be prepended with "EXTERNAL_STORAGE_",
-	#                    the external storage has to be mounted by yourself and the corresponding mount path has to be set,
-	#                    Example: if the external storage name was "sftp" and you mounted the corresponding SFTP folder as "/mnt/sshfs"
-	#                             then the value has to be set as: define("EXTERNAL_STORAGE_sftp", "/mnt/sshfs");
-	#                    Example: if the external storage name was "sftp", the external storage belonged to the user "admin" and you
-	#                             mounted the corresponding SFTP folder as "/mnt/sshfs" then the value has to be set as:
-	#                             define("EXTERNAL_STORAGE_admin/sftp", "/mnt/sshfs");
+	#                         Example: if the username was "beispiel" and the password of that user was "example" then the value
+	#                                  has to be set as: define("USER_PASSWORDS", ["beispiel" => "example"]);
+	#
+	# EXTERNAL_STORAGES       (OPTIONAL) these are the mount paths of external folders,
+	#                         you have to set these values if you used external storages within your Nextcloud instance,
+	#                         each value represents an (external storage, mount path) pair and you can set as many pairs as necessary,
+	#                         the external storage name has to be written as found in the "DATADIRECTORY/files_encryption/keys/files/" folder,
+	#                         if the external storage belongs to a specific user then the name has to contain the username followed by a slash
+	#                         followed by the external storage name as found in the "DATADIRECTORY/$username/files_encryption/keys/files/" folder,
+	#                         the external storage has to be mounted by yourself and the corresponding mount path has to be set
+	#
+	#                         Example: if the external storage name was "sftp" and you mounted the corresponding SFTP folder as "/mnt/sshfs"
+	#                                  then the value has to be set as: define("EXTERNAL_STORAGES", ["sftp" => "/mnt/sshfs"]);
+	#
+	#                         Example: if the external storage name was "sftp", the external storage belonged to the user "admin" and you
+	#                                  mounted the corresponding SFTP folder as "/mnt/sshfs" then the value has to be set as:
+	#                                  define("EXTERNAL_STORAGES", ["admin/sftp" => "/mnt/sshfs"]);
+	#
+	# SUPPORT_MISSING_HEADERS (OPTIONAL) this is a value that tells the script if you have encrypted files without headers,
+	#                         this configuration is only needed if you have data from a VERY old OwnCloud/Nextcloud instance,
+	#                         you probably should not set this value as it will break unencrypted files that may live alongside your encrypted files
+	#
 	#
 	# execution:
 	# ==========
@@ -70,29 +75,30 @@
 	#
 	# ./decrypt-all-files.php <targetdir> [<sourcedir>|<sourcefile>]*
 	#
-	# <targetdir>  (REQUIRED) this is the target directory where the decrypted files get stored, the target directory has to
-	#              already exist and it has to be empty, make sure that there is enough space to store all decrypted files in
-	#              the target directory
+	# <targetdir>  (REQUIRED) this is the target directory where the decrypted files get stored,
+	#              the target directory has to already exist and should be empty as already-existing files will be skipped,
+	#              make sure that there is enough space to store all decrypted files in the target directory
 	#
-	# <sourcedir>  (OPTIONAL) this is the name of the source folder which shall be decrypted, either absolute or relative to
-	#              the DATADIRECTORY; if this parameter is not provided then all files in the data directory will be decrypted
+	# <sourcedir>  (OPTIONAL) this is the name of the source folder which shall be decrypted,
+	#              the name of the source folder has to be either absolute or relative to the DATADIRECTORY,
+	#              if this parameter is not provided then all files in the data directory will be decrypted
 	#
-	# <sourcefile> (OPTIONAL) this is the name of the source file which shall be decrypted, either absolute or relative to
-	#              the DATADIRECTORY; if this parameter is not provided then all files in the data directory will be decrypted
+	# <sourcefile> (OPTIONAL) this is the name of the source file which shall be decrypted,
+	#              the name of the source file has to be either absolute or relative to the DATADIRECTORY,
+	#              if this parameter is not provided then all files in the data directory will be decrypted
 	#
 	# The execution may take a lot of time, depending on the power of your computer and on the number and size of your files.
 	# Make sure that the script is able to run without interruption. As of now it does not have a resume feature. On servers you
-	# can achieve this by starting the script within a screen session. Also, the script currently does not support external
-	# storages. If you need this specific feature then please contact the author.
+	# can achieve this by starting the script within a screen session.
+	#
+	# Also, the script currently does not support the decryption of files in the trashbin that have been deleted from external
+	# storage as Nextcloud creates zero byte files when deleting such a file instead of copying over its actual content.
 
-	// static definitions
-	define("BLOCKSIZE",        8192);
-	define("EXTERNAL_STORAGE", "EXTERNAL_STORAGE_");
-	define("HEADER_END",       "HEND");
-	define("HEADER_START",     "HBEGIN");
+	// ===== USER CONFIGURATION =====
 
-	// debug mode definition
-	define("DEBUG_MODE", false);
+	// debug mode definitions
+	define("DEBUG_MODE",         false);
+	define("DEBUG_MODE_VERBOSE", false);
 
 	// nextcloud definitions - you can get these values from config/config.php
 	define("DATADIRECTORY", "");
@@ -102,24 +108,76 @@
 	// recovery password definition
 	define("RECOVERY_PASSWORD", "");
 
-	// user password definitions
-	// replace "USERNAMEA", "USERNAMEB", "USERNAMEC" with the actual usernames
+	// user password definition,
+	// replace "username" with the actual usernames and "password" with the actual passwords
 	// you can add or remove entries as necessary
-	// define("USER_PASSWORD_USERNAMEA", "");
-	// define("USER_PASSWORD_USERNAMEB", "");
-	// define("USER_PASSWORD_USERNAMEC", "");
+	define("USER_PASSWORDS", array_change_key_case(["username" => "password",
+	                                                "username" => "password",
+	                                                "username" => "password"]));
 
-	// external storage definitions
-	// replace "STORAGEA", "STORAGEB", "STORAGEC" with the actual external storage names
+	// external storage definition,
+	// replace "storage" with the actual external storage names and "/mountpath" with the actual external storage mount paths
 	// you can add or remove entries as necessary
-	// define("EXTERNAL_STORAGE_STORAGEA", "");
-	// define("EXTERNAL_STORAGE_STORAGEB", "");
-	// define("EXTERNAL_STORAGE_STORAGEC", "");
+	define("EXTERNAL_STORAGES", ["storage" => "/mountpath",
+	                             "storage" => "/mountpath",
+	                             "storage" => "/mountpath"]);
+
+	// missing headers definition
+	// this should only be set to TRUE if you have really old encrypted files that do not contain encryption headers,
+	// in most cases this will rather break unencrypted files that may live alongside your encrypted files
+	define("SUPPORT_MISSING_HEADERS", false);
+
+	##### DO NOT EDIT BELOW THIS LINE #####
+
+	// ===== SYSTEM DEFINITIONS =====
+
+	// block size definitions
+	define("BLOCKSIZE", 8192);
+
+        // list of supported ciphers
+	define("CIPHER_SUPPORT", ["AES-256-CTR" => 32,
+	                          "AES-128-CTR" => 16,
+	                          "AES-256-CFB" => 32,
+	                          "AES-128-CFB" => 16]);
+
+	// header entries
+	define("HEADER_BEGIN",                "HBEGIN");
+	define("HEADER_CIPHER",               "cipher");
+	define("HEADER_END",                  "HEND");
+	define("HEADER_ENCODING",             "encoding");
+	define("HEADER_KEYFORMAT",            "keyFormat");
+	define("HEADER_OC_ENCRYPTION_MODULE", "oc_encryption_module");
+	define("HEADER_SIGNED",               "signed");
+
+	// header values
+	define("HEADER_CIPHER_DEFAULT",               "AES-256-CTR");
+	define("HEADER_CIPHER_LEGACY",                "AES-128-CFB");
+	define("HEADER_ENCODING_BASE64",              "base64");
+	define("HEADER_ENCODING_BINARY",              "binary");
+	define("HEADER_KEYFORMAT_HASH",               "hash");
+	define("HEADER_KEYFORMAT_PASSWORD",           "password");
+	define("HEADER_OC_ENCRYPTION_MODULE_DEFAULT", "OC_DEFAULT_MODULE");
+	define("HEADER_SIGNED_FALSE",                 "false");
+	define("HEADER_SIGNED_TRUE",                  "true");
+
+	// meta entries
+	define("META_ENCRYPTED", "encrypted");
+	define("META_IV",        "iv");
+	define("META_SIGNATURE", "signature");
+
+	// meta entries tags
+	define("META_IV_TAG",            "00iv00");
+	define("META_PADDING_TAG_LONG",  "xxx");
+	define("META_PADDING_TAG_SHORT", "xx");
+	define("META_SIGNATURE_TAG",     "00sig00");
 
 	// define as a constant to speed up decryptions
-	define("REPLACE_RC4_ALGO", checkReplaceRC4Algo());
+	define("REPLACE_RC4", checkReplaceRC4());
 
-	function checkReplaceRC4Algo() {
+	// ===== HELPER FUNCTIONS =====
+
+	// check if we have to use our own RC4 implementation
+	function checkReplaceRC4() {
 		// with OpenSSL v3 we assume that we have to replace the RC4 algo
 		$result = (OPENSSL_VERSION_NUMBER >= 0x30000000);
 
@@ -131,6 +189,7 @@
 		return $result;
 	}
 
+	// concatenate path pieces fixing leading and trailing slashes
 	function concatPath($directory, $file) {
 		if (0 < strlen($directory)) {
 			if ("/" !== $directory[strlen($directory)-1]) {
@@ -147,12 +206,14 @@
 		return $directory.$file;
 	}
 
-	function debug($message) {
+	// print messages only if the debug mode is active
+	function debug($string) {
 		if (DEBUG_MODE) {
-			print("DEBUG: $message\n");
+			println("DEBUG: $string");
 		}
 	}
 
+	// decrypted JSON-wrapped blobs
 	function decryptJson($file) {
 		$result = false;
 
@@ -168,8 +229,8 @@
 
 			if ($proceed) {
 				$ciphertext = hex2bin($parts[0]);
-				$key        = SECRET;
 				$iv         = $parts[1];
+				$secretkey  = SECRET;
 
 				if ($partCount === 4) {
 					$version = $parts[3];
@@ -177,16 +238,20 @@
 						$iv = hex2bin($iv);
 					}
 					if (intval($version) === 3) {
-						$temp = hash_hkdf("sha512", $key);
-						$key  = substr($temp, 0, 32);
+						$temp      = hash_hkdf("sha512", $secretkey);
+						$secretkey = substr($temp, 0, 32);
 					}
 				}
 
-				$key  = hash_pbkdf2("sha1", $key, "phpseclib", 1000, 16, true);
-				$json = openssl_decrypt($ciphertext, "aes-128-cbc", $key, OPENSSL_RAW_DATA, $iv);
+				$secretkey  = hash_pbkdf2("sha1", $secretkey, "phpseclib", 1000, 16, true);
+				$json       = openssl_decrypt($ciphertext, "aes-128-cbc", $secretkey, OPENSSL_RAW_DATA, $iv);
 				if (false !== $json) {
 					$json = json_decode($json, true);
 					if (is_array($json)) {
+						if (DEBUG_MODE_VERBOSE) {
+							debug("json = ".var_export($json, true));
+						}
+
 						if (array_key_exists("key", $json)) {
 							$result = base64_decode($json["key"]);
 						}
@@ -200,27 +265,51 @@
 		return $result;
 	}
 
+	// parse a private key file and try to decrypt it
 	function decryptPrivateKey($file, $password, $keyid) {
 		$result = false;
 
-		$header = parseHeader($file);
-		$meta   = splitMetaData($file);
+		$header = parseHeader($file, SUPPORT_MISSING_HEADERS);
+
+		// strip header to parse meta data
+		$meta = $file;
+		if (substr($meta, 0, strlen(HEADER_BEGIN)) === HEADER_BEGIN) {
+			$meta = substr($meta, strpos($meta, HEADER_END)+strlen(HEADER_END));
+		}
+		$meta = parseMeta($meta);
 
 		if (is_array($header) && is_array($meta)) {
-			if (array_key_exists("cipher", $header) &&
-			    array_key_exists("encrypted", $meta) &&
-			    array_key_exists("iv", $meta)) {
-				if (array_key_exists("keyFormat", $header) && ("hash" === $header["keyFormat"])) {
-					$password = generatePasswordHash($password, $header["cipher"], $keyid);
+			if (array_key_exists(HEADER_CIPHER, $header) &&
+			    array_key_exists(HEADER_ENCODING, $header) &&
+			    array_key_exists(HEADER_KEYFORMAT, $header) &&
+			    array_key_exists(META_ENCRYPTED, $meta) &&
+			    array_key_exists(META_IV, $meta)) {
+				// set default secret key
+				$secretkey = $password;
+
+				// check if we need to generate the password hash,
+				// if so then generate it via PBKDF2 that matches the
+				// required key length for the given cipher
+				if (HEADER_KEYFORMAT_HASH === $header[HEADER_KEYFORMAT]) {
+					// required before PHP 8.2
+					$salt = hash("sha256", $keyid.INSTANCEID.SECRET, true);
+					if ((false !== $salt) && array_key_exists(strtoupper($header[HEADER_CIPHER]), CIPHER_SUPPORT)) {
+						$secretkey = hash_pbkdf2("sha256", $secretkey, $salt, 100000, CIPHER_SUPPORT[strtoupper($header[HEADER_CIPHER])], true);
+					}
+
+					// usable starting with PHP 8.2
+					// if ((false !== $salt) && (false !== openssl_cipher_key_length($header[HEADER_CIPHER]))) {
+					// 	$secretkey = hash_pbkdf2("sha256", $secretkey, $salt, 100000, openssl_cipher_key_length($header[HEADER_CIPHER]), true);
+					// }
 				}
 
-				$key = openssl_decrypt(stripHeader($meta["encrypted"]), $header["cipher"], $password, false, $meta["iv"]);
-				if (false !== $key) {
-					$res = openssl_pkey_get_private($key);
+				$privatekey = openssl_decrypt($meta[META_ENCRYPTED], $header[HEADER_CIPHER], $secretkey, (HEADER_ENCODING_BINARY === $header[HEADER_ENCODING]) ? OPENSSL_RAW_DATA : 0, $meta[META_IV]);
+				if (false !== $privatekey) {
+					$res = openssl_pkey_get_private($privatekey);
 					if (is_resource($res) || ($res instanceof OpenSSLAsymmetricKey)) {
 						$sslInfo = openssl_pkey_get_details($res);
 						if (array_key_exists("key", $sslInfo)) {
-							$result = $key;
+							$result = $privatekey;
 						}
 					}
 				} else {
@@ -232,6 +321,7 @@
 		return $result;
 	}
 
+	// try to decrypt all available private keys
 	function decryptPrivateKeys() {
 		$result = [];
 
@@ -263,9 +353,9 @@
 				if (null !== $keyname) {
 					$file = file_get_contents_try_json($filename);
 					if (false !== $file) {
-						$key = decryptPrivateKey($file, $password, $keyid);
-						if (false !== $key) {
-							$result[$keyname] = $key;
+						$privatekey = decryptPrivateKey($file, $password, $keyid);
+						if (false !== $privatekey) {
+							$result[$keyname] = $privatekey;
 
 							debug("loaded private key for $keyname");
 						}
@@ -285,16 +375,16 @@
 					$password = null;
 
 					// try to retrieve the user password
-					if (defined("USER_PASSWORD_".strtoupper($keyname))) {
-						$password = constant("USER_PASSWORD_".strtoupper($keyname));
+					if (array_key_exists(strtolower($keyname), USER_PASSWORDS)) {
+						$password = USER_PASSWORDS[strtolower($keyname)];
 					}
 
 					if (is_file($filename) && (null !== $password)) {
 						$file = file_get_contents_try_json($filename);
 						if (false !== $file) {
-							$key = decryptPrivateKey($file, $password, $keyname);
-							if (false !== $key) {
-								$result[$keyname] = $key;
+							$privatekey = decryptPrivateKey($file, $password, $keyname);
+							if (false !== $privatekey) {
+								$result[$keyname] = $privatekey;
 
 								debug("loaded private key for $keyname");
 							}
@@ -307,6 +397,7 @@
 		return $result;
 	}
 
+	// read a file and automagically try to decrypt it in case it is a JSON-wrapped blob
 	function file_get_contents_try_json($filename) {
 		$result = file_get_contents($filename);
 
@@ -320,75 +411,87 @@
 		return $result;
 	}
 
-	function generatePasswordHash($password, $cipher, $uid = "") {
-		$result = false;
-
-		$keySize = getKeySize($cipher);
-		$salt    = hash("sha256", $uid.INSTANCEID.SECRET, true);
-		if ((false !== $keySize) && (false !== $salt)) {
-			$result = hash_pbkdf2("sha256", $password, $salt, 100000, $keySize, true);
-		}
-
-		return $result;
-	}
-
-	function getKeySize($cipher) {
-		$result = false;
-
-		$supportedCiphersAndKeySize = ["AES-256-CTR" => 32,
-		                               "AES-128-CTR" => 16,
-		                               "AES-256-CFB" => 32,
-		                               "AES-128-CFB" => 16];
-
-		if (array_key_exists($cipher, $supportedCiphersAndKeySize)) {
-			$result = $supportedCiphersAndKeySize[$cipher];
-		}
-
-		return $result;
-	}
-
-	function hasPadding($padded, $hasSignature = false) {
-		$result = false;
-
-		if ($hasSignature) {
-			$result = ("xxx" === substr($padded, -3));
-		} else {
-			$result = ("xx" === substr($padded, -2));
-		}
-
-		return $result;
-	}	
-
-	function hasSignature($file) {
-		$meta = substr($file, -93);
-		$pos  = strpos($meta, "00sig00");
-
-		return ($pos !== false);
-	}
-
-	// if $checkForLegacy is TRUE then the legacy cipher and keyFormat will be returned when the header parsing fails
-	function parseHeader($file, $checkForLegacy = true) {
+	// try to parse the file header
+	function parseHeader($file, $supportMissingHeaders) {
 		$result = [];
 
-		if (substr($file, 0, strlen(HEADER_START)) === HEADER_START) {
+		if (substr($file, 0, strlen(HEADER_BEGIN)) === HEADER_BEGIN) {
+			// prepare default values
+			$result[HEADER_CIPHER]               = HEADER_CIPHER_LEGACY;
+			$result[HEADER_ENCODING]             = HEADER_ENCODING_BASE64;
+			$result[HEADER_KEYFORMAT]            = HEADER_KEYFORMAT_PASSWORD;
+			$result[HEADER_OC_ENCRYPTION_MODULE] = HEADER_OC_ENCRYPTION_MODULE_DEFAULT;
+			$result[HEADER_SIGNED]               = HEADER_SIGNED_FALSE;
+
 			$endAt  = strpos($file, HEADER_END);
 			$header = substr($file, 0, $endAt+strlen(HEADER_END));
 
 			// +1 not to start with an ':' which would result in empty element at the beginning
-			$exploded = explode(":", substr($header, strlen(HEADER_START)+1));
+			$exploded = explode(":", substr($header, strlen(HEADER_BEGIN)+1));
 			$element  = array_shift($exploded);
-
 			while ($element !== HEADER_END) {
 				$result[$element] = array_shift($exploded);
 				$element          = array_shift($exploded);
 			}
-		} elseif ($checkForLegacy) {
-			$result["cipher"]    = "AES-128-CFB";
-			$result["keyFormat"] = "password";
+		} else if ($supportMissingHeaders) {
+			// prepare default values
+			$result[HEADER_CIPHER]               = HEADER_CIPHER_LEGACY;
+			$result[HEADER_ENCODING]             = HEADER_ENCODING_BASE64;
+			$result[HEADER_KEYFORMAT]            = HEADER_KEYFORMAT_PASSWORD;
+			$result[HEADER_OC_ENCRYPTION_MODULE] = HEADER_OC_ENCRYPTION_MODULE_DEFAULT;
+			$result[HEADER_SIGNED]               = HEADER_SIGNED_FALSE;
+
 			debug("key is using legacy format, setting cipher and key format");
 		}
 
+		if (DEBUG_MODE_VERBOSE) {
+			debug("header = ".var_export($result, true));
+		}
+
 		return $result;
+	}
+
+	// try to parse the block
+	function parseMeta($file) {
+		$result = [];
+
+		// check if there is a signature in the block
+		if (false !== strpos(substr($file, -93), META_SIGNATURE_TAG)) {
+			// remove the long padding from the block
+			if (META_PADDING_TAG_LONG === substr($file, -3)) {
+				$file = substr($file, 0, -3);
+			}
+			$meta = substr($file, -93);
+
+			$result[META_ENCRYPTED] = substr($file, 0, -93);
+			$result[META_IV]        = substr($meta, strlen(META_IV_TAG), 16);
+			$result[META_SIGNATURE] = substr($meta, 22+strlen(META_SIGNATURE_TAG));
+		} else {
+			// remove the short padding from the block
+			if (META_PADDING_TAG_SHORT === substr($file, -2)) {
+				$file = substr($file, 0, -2);
+			}
+			$meta = substr($file, -22);
+
+			$result[META_ENCRYPTED] = substr($file, 0, -22);
+			$result[META_IV]        = substr($meta, -16);
+			$result[META_SIGNATURE] = false;
+		}
+
+		if (DEBUG_MODE_VERBOSE) {
+			// prepare array for debugging
+			$debug_result = [META_ENCRYPTED => shortenString(bin2hex($result[META_ENCRYPTED]), 131, "...")." (".strlen($result[META_ENCRYPTED])." bytes)",
+			                 META_IV        => bin2hex($result[META_IV]),
+			                 META_SIGNATURE => $result[META_SIGNATURE]];
+			debug("meta = ".var_export($debug_result, true));
+		}
+
+		return $result;
+	}
+
+	// print messages with a line break
+	function println($string) {
+		print($string.PHP_EOL);
 	}
 
 	// hands-down implementation of RC4
@@ -432,6 +535,7 @@
 		return $result;
 	}
 
+	// scan a folder and optionally scan it recursively
 	function recursiveScandir($path = "", $recursive = true) {
 		$result = [];
 
@@ -457,55 +561,23 @@
 		return $result;
 	}
 
-	function removePadding($padded, $hasSignature = false) {
-		$result = false;
+	// shorten a string with a filler
+	function shortenString($string, $length, $filler = "...") {
+		$result = $string;
 
-		if ($hasSignature) {
-			if ("xxx" === substr($padded, -3)) {
-				$result = substr($padded, 0, -3);
-			}
-		} else {
-			if ("xx" === substr($padded, -2)) {
-				$result = substr($padded, 0, -2);
-			}
+		// check if it makes sense to shorten the string
+		if ((strlen($result) > $length) && (strlen($filler) < $length)) {
+			$result = substr_replace($result, $filler, ceil($length - strlen($filler)) / 2, -floor(($length - strlen($filler)) / 2));
 		}
 
 		return $result;
 	}
 
-	function splitMetaData($file) {
-		if (hasSignature($file)) {
-			$file      = removePadding($file, true);
-			$meta      = substr($file, -93);
-			$iv        = substr($meta, strlen("00iv00"), 16);
-			$sig       = substr($meta, 22+strlen("00sig00"));
-			$encrypted = substr($file, 0, -93);
-		} else {
-			$file      = removePadding($file);
-			$meta      = substr($file, -22);
-			$iv        = substr($meta, -16);
-			$sig       = false;
-			$encrypted = substr($file, 0, -22);
-		}
-
-		return ["encrypted" => $encrypted,
-			"iv"        => $iv,
-			"signature" => $sig];
-	}
-
-	function stripHeader($encrypted) {
-		# Don't strip header if legacy format (not using HEADER_START/HEADER_END)
-		if (substr($encrypted, 0, strlen(HEADER_START)) === HEADER_START) {
-			return substr($encrypted, strpos($encrypted, HEADER_END)+strlen(HEADER_END));
-		} else {
-			return $encrypted;
-		}
-	}
-
+	// try to do an RC4 openssl_open() but fall back to our custom implementation if needed
 	function wrapped_openssl_open($data, &$output, $encrypted_key, $private_key, $cipher_algo, $iv = null) {
 		$result = false;
 
-		if ((0 === strcasecmp($cipher_algo, "rc4")) && REPLACE_RC4_ALGO) {
+		if ((0 === strcasecmp($cipher_algo, "rc4")) && REPLACE_RC4) {
 			if (openssl_private_decrypt($encrypted_key, $intermediate, $private_key, OPENSSL_PKCS1_PADDING)) {
 				$output = rc4($data, $intermediate);
 				$result = (false !== $output);
@@ -525,28 +597,10 @@
 		return $result;
 	}
 
-	function decryptBlock($header, $block, $secretkey) {
-		$result = false;
+	// ===== MAIN FUNCTIONS =====
 
-		$meta = splitMetaData($block);
-
-		if (is_array($header) && is_array($meta)) {
-			if (array_key_exists("cipher", $header) &&
-			    array_key_exists("encrypted", $meta) &&
-			    array_key_exists("iv", $meta)) {
-				$output = openssl_decrypt($meta["encrypted"], $header["cipher"], $secretkey, false, $meta["iv"]);
-				if (false !== $output) {
-					$result = $output;
-				} else {
-					debug("block could not be decrypted: ".openssl_error_string());
-				}
-			}
-		}
-
-		return $result;
-	}
-
-	function copyUnencryptedFile($filename, $target) {
+	// check if a file has a header and if not copy it to the target
+	function copyFile($filename, $target) {
 		$result = false;
 
 		// try to set file times later on
@@ -591,6 +645,30 @@
 		return $result;
 	}
 
+	// decrypt a single file block
+	function decryptBlock($header, $block, $secretkey) {
+		$result = false;
+
+		$meta = parseMeta($block);
+
+		if (is_array($header) && is_array($meta)) {
+			if (array_key_exists(HEADER_CIPHER, $header) &&
+			    array_key_exists(HEADER_ENCODING, $header) &&
+			    array_key_exists(META_ENCRYPTED, $meta) &&
+			    array_key_exists(META_IV, $meta)) {
+				$output = openssl_decrypt($meta[META_ENCRYPTED], $header[HEADER_CIPHER], $secretkey, (HEADER_ENCODING_BINARY === $header[HEADER_ENCODING]) ? OPENSSL_RAW_DATA : 0, $meta[META_IV]);
+				if (false !== $output) {
+					$result = $output;
+				} else {
+					debug("block could not be decrypted: ".openssl_error_string());
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	// try to decrypt a file
 	function decryptFile($filename, $secretkey, $target) {
 		$result = false;
 
@@ -621,7 +699,7 @@
 						// the first block contains the header
 						if ($first) {
 							$first  = false;
-							$header = parseHeader($block);
+							$header = parseHeader($block, SUPPORT_MISSING_HEADERS);
 						} else {
 							$plain = decryptBlock($header, $block, $secretkey);
 							if (false !== $plain) {
@@ -644,7 +722,7 @@
 				// the file only has 1 block, parsing the header before decryption
 				if ($first) {
 					$first  = false;
-					$header = parseHeader($block);
+					$header = parseHeader($block, SUPPORT_MISSING_HEADERS);
 				}
 
 				$plain = decryptBlock($header, $block, $secretkey);
@@ -674,7 +752,8 @@
 		return $result;
 	}
 
-	function decryptAllFiles($targetdir, $sourcepaths = null) {
+	// iterate over the file lists and try to decrypt the files
+	function decryptFiles($targetdir, $sourcepaths = null) {
 		$result = 0;
 
 		$privatekeys = decryptPrivateKeys();
@@ -704,14 +783,11 @@
 			}
 
 			// add external storage folders as sources
-			foreach (array_keys(get_defined_constants(true)["user"]) as $constant) {
-				if (0 === strpos($constant, EXTERNAL_STORAGE)) {
-					if (is_dir(constant($constant))) {
-						$sources[substr($constant, strlen(EXTERNAL_STORAGE))] = constant($constant);
-					} else {
-						print("ERROR: EXTERNAL STORAGE ".constant($constant)." DOES NOT EXIST\n");
-						$result = 4;
-					}
+			foreach (EXTERNAL_STORAGES as $key => $value) {
+				if (is_dir($value)) {
+					$sources[$key] = $value;
+				} else {
+					println("WARNING: EXTERNAL STORAGE $value DOES NOT EXIST");
 				}
 			}
 
@@ -735,12 +811,12 @@
 						} else {
 							// do we handle a user-specific external storage
 							if (false === strpos($source, "/")) {
-								$target = concatPath(concatPath($targetdir, EXTERNAL_STORAGE.$source),
-								                     substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+								$target = concatPath(concatPath($targetdir, "EXTERNAL_".$source),
+								                     substr($filename, strlen($path)));
 							} else {
 								$target = concatPath(concatPath(concatPath($targetdir, substr($source, 0, strpos($source, "/"))),
-								                                EXTERNAL_STORAGE.substr($source, strpos($source, "/")+1)),
-								                     substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+								                                "EXTERNAL_".substr($source, strpos($source, "/")+1)),
+								                     substr($filename, strlen($path)));
 							}
 						}
 						debug("target = $target");
@@ -780,12 +856,12 @@
 								// do we handle a user-specific external storage
 								if (false === strpos($source, "/")) {
 									$datafilename = concatPath($source,
-									                           substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+									                           substr($filename, strlen($path)));
 									$istrashbin   = false;
 									$username     = "";
 								} else {
 									$datafilename = concatPath(substr($source, strpos($source, "/")+1),
-									                           substr($filename, strlen(constant(EXTERNAL_STORAGE.$source))));
+									                           substr($filename, strlen($path)));
 									$istrashbin   = false;
 									$username     = substr($source, 0, strpos($source, "/"));
 								}
@@ -843,6 +919,7 @@
 									mkdir(dirname($target), 0777, true);
 								}
 
+								// if the file provides all relevant key material then we try to decrypt it
 								if ($isencrypted) {
 									if (null !== $secretkey) {
 										debug("trying to decrypt file...");
@@ -851,15 +928,21 @@
 									} else {
 										debug("cannot decrypt this file...");
 									}
-								} else {
+								}
+
+								// if the file does not provide all relevant key material or if the file
+								// could not be decrypted (maybe due to missing headers) we try to copy it,
+								// but we copy it only if it does not contain an encryption header and only
+								// if the decryption hasn't created a file already
+								if ((!$success) && ((!is_file($target)) || (0 >= filesize($target)))) {
 									debug("trying to copy file...");
 
-									$success = copyUnencryptedFile($filename, $target);
+									$success = copyFile($filename, $target);
 								}
 								debug("success = ".($success ? "true" : "false"));
 
 								if ($success) {
-									print("DONE: $filename\n");
+									println("DONE: $filename");
 								} else {
 									// we failed but created a file,
 									// discard the broken file
@@ -867,50 +950,56 @@
 										unlink($target);
 									}
 
-									print("ERROR: $filename FAILED\n");
-									$result = 5;
+									println("ERROR: $filename FAILED");
+									$result = 4;
 								}
 							} else {
 								debug("skipping this file...");
 							}
 						} else {
-							print("SKIP: $target ALREADY EXISTS\n");
+							println("SKIP: $target ALREADY EXISTS");
 						}
 					}
 				}
 			}
 		} else {
-			print("ERROR: COULD NOT DECRYPT ANY PRIVATE KEY\n");
+			println("ERROR: COULD NOT DECRYPT ANY PRIVATE KEY");
 			$result = 3;
 		}
 
 		return $result;
 	}
 
-	function main($argv) {
+	// ===== MAIN ENTRYPOINT =====
+
+	// handle the parameters
+	function main($arguments) {
 		$result = 0;
 
 		debug("debug mode enabled");
 
+		// we want to work with an empty stat cache
+		clearstatcache(true);
+
 		if (is_dir(DATADIRECTORY)) {
 			$targetdir = null;
-			if (2 <= count($argv)) {
-				$targetdir = $argv[1];
+			if (2 <= count($arguments)) {
+				$targetdir = $arguments[1];
 			}
 
 			$sourcepaths = [];
-			if (3 <= count($argv)) {
-				$sourcepaths = array_slice($argv, 2);
+			if (3 <= count($arguments)) {
+				$sourcepaths = array_slice($arguments, 2);
 			}
 
 			if ((null !== $targetdir) && is_dir($targetdir)) {
-				$result = decryptAllFiles($targetdir, $sourcepaths);
+				$result = decryptFiles($targetdir, $sourcepaths);
 			} else {
-				print("ERROR: TARGETDIR NOT GIVEN OR DOES NOT EXIST\n");
+				println("ERROR: TARGETDIR NOT GIVEN OR DOES NOT EXIST");
 				$result = 2;
 			}
 		} else {
-			print("ERROR: DATADIRECTORY DOES NOT EXIST\n");
+			println("ERROR: DATADIRECTORY DOES NOT EXIST");
 			$result = 1;
 		}
 
@@ -919,5 +1008,6 @@
 		return $result;
 	}
 
+	// main entrypoint
 	exit(main($argv));
 
