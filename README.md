@@ -8,7 +8,7 @@ Rescue tooling is located in the `./rescue/` subfolder.
 
 ### decrypt-all-files.php
 
-This is script can save your precious files in cases where you encrypted them with the Nextcloud Server Side Encryption and still have access to the data directory and the Nextcloud configuration file ("config/config.php"). This script is able to decrypt locally stored files within the data directory. It supports master-key encrypted files, user-key encrypted files and can also use a rescue key (if enabled) and the public sharing key if files had been publicly shared.
+This script can save your precious files in cases where you encrypted them with the Nextcloud Server Side Encryption and still have access to the data directory and the Nextcloud configuration file ("config/config.php"). This script is able to decrypt locally stored files within the data directory. It supports master-key encrypted files, user-key encrypted files and can also use a rescue key (if enabled) and the public sharing key if files had been publicly shared.
 
 **Update 2022-12-28:** The `decrypt-all-files.php` script now supports the new binary encoding that was introduced with the Nextcloud 25 release. Furthermore, the code has been reworked and smaller improvements have been added.
 

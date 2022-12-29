@@ -16,7 +16,7 @@
 	# description:
 	# ============
 	#
-	# This is script can save your precious files in cases where you encrypted them with the
+	# This script can save your precious files in cases where you encrypted them with the
 	# Nextcloud Server Side Encryption and still have access to the data directory and the
 	# Nextcloud configuration file ("config/config.php"). This script is able to decrypt locally
 	# stored files within the data directory. It supports master-key encrypted files, user-key
