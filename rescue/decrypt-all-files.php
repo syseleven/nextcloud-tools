@@ -140,6 +140,9 @@
 	                          "AES-256-CFB" => 32,
 	                          "AES-128-CFB" => 16]);
 
+	// prefix of decrypted external storages
+	define("EXTERNAL_PREFIX", "EXTERNAL_");
+
 	// header entries
 	define("HEADER_BEGIN",                "HBEGIN");
 	define("HEADER_CIPHER",               "cipher");
@@ -811,11 +814,11 @@
 						} else {
 							// do we handle a user-specific external storage
 							if (false === strpos($source, "/")) {
-								$target = concatPath(concatPath($targetdir, "EXTERNAL_".$source),
+								$target = concatPath(concatPath($targetdir, EXTERNAL_PREFIX.$source),
 								                     substr($filename, strlen($path)));
 							} else {
 								$target = concatPath(concatPath(concatPath($targetdir, substr($source, 0, strpos($source, "/"))),
-								                                "EXTERNAL_".substr($source, strpos($source, "/")+1)),
+								                                EXTERNAL_PREFIX.substr($source, strpos($source, "/")+1)),
 								                     substr($filename, strlen($path)));
 							}
 						}
