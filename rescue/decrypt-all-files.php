@@ -186,7 +186,7 @@
 
 		if ($result) {
 			// maybe someone has re-enabled the legacy support in OpenSSL v3
-			$result = (false === openssl_encrypt("test", "rc4", "test", OPENSSL_RAW_DATA, null, $tag, null, 0));
+			$result = (false === openssl_encrypt("test", "rc4", "test", OPENSSL_RAW_DATA, "", $tag, "", 0));
 		}
 
 		return $result;
