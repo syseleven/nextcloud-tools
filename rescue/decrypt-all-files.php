@@ -3,7 +3,7 @@
 
 	# decrypt-all-files.php
 	#
-	# Copyright (c) 2019-2022, SysEleven GmbH
+	# Copyright (c) 2019-2023, SysEleven GmbH
 	# All rights reserved.
 	#
 	#
@@ -139,6 +139,9 @@
 	                          "AES-128-CTR" => 16,
 	                          "AES-256-CFB" => 32,
 	                          "AES-128-CFB" => 16]);
+
+	// infix used by encryption:encrypt-all
+	define("ENCRYPTION_INFIX", ".encrypted.");
 
 	// prefix of decrypted external storages
 	define("EXTERNAL_PREFIX", "EXTERNAL_");
@@ -882,6 +885,7 @@
 								debug("username = $username");
 
 								$isencrypted = false;
+								$keyfolder   = null;
 								$secretkey   = null;
 								$subfolder   = null;
 
@@ -891,8 +895,29 @@
 									$subfolder = "files";
 								}
 
-								$filekeyname = concatPath(DATADIRECTORY,
-								                          $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/fileKey");
+								// prepare the key folder for later user
+								$keyfolder = concatPath(DATADIRECTORY,
+								                        $username."/files_encryption/keys/".$subfolder."/");
+
+								// try to identify the filekey
+								$filekeyname = concatPath($keyfolder,
+								                          $datafilename."/OC_DEFAULT_MODULE/fileKey");
+								if (!is_file($filekeyname)) {
+									// check if we can find a folder with the encryption infix
+									$keylist = recursiveScandir(dirname(concatPath($keyfolder, $datafilename)), false);
+									foreach ($keylist as $keyitem) {
+										if (1 === preg_match("@^".preg_quote(concatPath($keyfolder, $datafilename.ENCRYPTION_INFIX), "@")."[0-9]+$@", $keyitem, $matches)) {
+											// set the alternative filekey name
+											$filekeyname = concatPath($keyitem, "/OC_DEFAULT_MODULE/fileKey");
+
+											// proceed with the decryption attempt
+											if (is_file($filekeyname)) {
+												break;
+											}
+										}
+									}
+								}
+
 								if (is_file($filekeyname)) {
 									$isencrypted = true;
 
@@ -900,8 +925,24 @@
 									debug("isencrypted = ".($isencrypted ? "true" : "false"));
 
 									foreach ($privatekeys as $key => $value) {
-										$sharekeyname = concatPath(DATADIRECTORY,
-										                           $username."/files_encryption/keys/".$subfolder."/".$datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+										$sharekeyname = concatPath($keyfolder,
+										                           $datafilename."/OC_DEFAULT_MODULE/".$key.".shareKey");
+										if (!is_file($sharekeyname)) {
+											// check if we can find a folder with the encryption infix
+											$keylist = recursiveScandir(dirname(concatPath($keyfolder, $datafilename)), false);
+											foreach ($keylist as $keyitem) {
+												if (1 === preg_match("@^".preg_quote(concatPath($keyfolder, $datafilename.ENCRYPTION_INFIX), "@")."[0-9]+$@", $keyitem, $matches)) {
+													// set the alternative sharekey name
+													$sharekeyname = concatPath($keyitem, "/OC_DEFAULT_MODULE/".$key.".shareKey");
+
+													// proceed with the decryption attempt
+													if (is_file($sharekeyname)) {
+														break;
+													}
+												}
+											}
+										}
+
 										if (is_file($sharekeyname)) {
 											debug("sharekeyname = $sharekeyname");
 
