@@ -109,20 +109,20 @@
 	define("RECOVERY_PASSWORD", "");
 
 	// user password definition,
-	// replace "username" with the actual usernames and "password" with the actual passwords
+	// replace "username" with the actual usernames and "password" with the actual passwords,
 	// you can add or remove entries as necessary
 	define("USER_PASSWORDS", array_change_key_case(["username" => "password",
 	                                                "username" => "password",
 	                                                "username" => "password"]));
 
 	// external storage definition,
-	// replace "storage" with the actual external storage names and "/mountpath" with the actual external storage mount paths
+	// replace "storage" with the actual external storage names and "/mountpath" with the actual external storage mount paths,
 	// you can add or remove entries as necessary
 	define("EXTERNAL_STORAGES", ["storage" => "/mountpath",
 	                             "storage" => "/mountpath",
 	                             "storage" => "/mountpath"]);
 
-	// missing headers definition
+	// missing headers definition,
 	// this should only be set to TRUE if you have really old encrypted files that do not contain encryption headers,
 	// in most cases this will rather break unencrypted files that may live alongside your encrypted files
 	define("SUPPORT_MISSING_HEADERS", false);
@@ -895,7 +895,7 @@
 									$subfolder = "files";
 								}
 
-								// prepare the key folder for later user
+								// prepare the key folder for later use
 								$keyfolder = concatPath(DATADIRECTORY,
 								                        $username."/files_encryption/keys/".$subfolder."/");
 
