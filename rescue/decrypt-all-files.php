@@ -93,6 +93,12 @@
 	#
 	# Also, the script currently does not support the decryption of files in the trashbin that have been deleted from external
 	# storage as Nextcloud creates zero byte files when deleting such a file instead of copying over its actual content.
+	#
+	# Windows users: This script heavily relies on pattern matching which assumes that forward slashes ("/") are used as the path
+	#                separators instead of backslashes ("/"). When providing paths to the script either in the configuration or
+	#                through the command line then please make sure to replace all backslashes with forward slashes.
+	#
+	#                Example: use "C:/foo/bar/" instead of "C:\foo\bar\"
 
 	// ===== USER CONFIGURATION =====
 
