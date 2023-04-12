@@ -1,6 +1,6 @@
 # nextcloud-tools
 
-**ARCHIVED: This original repository has been archived and is unmaintained. Please find the maintained fork of the original maintainer at [yahesh/nextcloud-rescue](https://github.com/yahesh/nextcloud-rescue).**
+**ARCHIVED: This original repository has been archived and is unmaintained. Please find the maintained fork of the original maintainer at [nextcloud/encryption-recovery-tools](https://github.com/nextcloud/encryption-recovery-tools).**
 
 The **nextcloud-tools** have been developed by [SysEleven](https://syseleven.de) to debug the encryption and signature methods executed by the default encryption module of Nextcloud. The provided scripts may be helpful for other Nextcloud users and developers to debug problems or restore files.
 
